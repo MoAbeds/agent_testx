@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import ScanButton from '@/components/ScanButton';
 import AddSiteForm from '@/components/AddSiteForm';
+import OptimizeButton from '@/components/OptimizeButton';
 
 // Force dynamic rendering so we get fresh DB stats on refresh
 export const dynamic = 'force-dynamic';
@@ -129,10 +130,13 @@ export default async function Dashboard() {
                             {page.metaDesc || <span className="italic">No meta description</span>}
                           </p>
                         </div>
-                        <div className="text-right text-xs text-gray-500 whitespace-nowrap">
-                          {page.lastCrawled 
-                            ? new Date(page.lastCrawled).toLocaleDateString() 
-                            : 'Never'}
+                        <div className="flex items-center gap-3">
+                          <OptimizeButton pageId={page.id} />
+                          <div className="text-right text-xs text-gray-500 whitespace-nowrap">
+                            {page.lastCrawled 
+                              ? new Date(page.lastCrawled).toLocaleDateString() 
+                              : 'Never'}
+                          </div>
                         </div>
                       </div>
                     </div>

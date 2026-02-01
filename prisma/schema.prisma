@@ -1,0 +1,86 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  sites     Site[]
+}
+
+model Site {
+  id          String   @id @default(uuid())
+  domain      String   // e.g., "example.com"
+  apiKey      String   @unique // The key the Agent uses to authenticate
+  createdAt   DateTime @default(now())
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  pages       Page[]
+  rules       OptimizationRule[]
+  events      AgentEvent[]
+}
+
+model Page {
+  id          String   @id @default(uuid())
+  path        String   // e.g., "/pricing"
+  lastCrawled DateTime?
+  status      Int      // 200, 404, etc.
+  
+  // Current SEO State (Snapshot)
+  title       String?
+  metaDesc    String?
+  
+  siteId      String
+  site        Site     @relation(fields: [siteId], references: [id])
+  
+  @@unique([siteId, path]) // Ensure unique paths per site
+}
+
+// SQLite doesn't support Enum, using String
+model OptimizationRule {
+  id          String   @id @default(uuid())
+  targetPath  String   // The URL pattern to match (e.g. "/pricing" or "/blog/*")
+  
+  // RuleType (REWRITE_META, INJECT_SCHEMA, REDIRECT_301, INJECT_CONTENT)
+  type        String
+  
+  // The Payload: What to do?
+  // Stores JSON string 
+  payload     String     
+  
+  isActive    Boolean  @default(false) // Draft mode by default
+  confidence  Float    @default(0.0)   // AI Confidence score
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  siteId      String
+  site        Site     @relation(fields: [siteId], references: [id])
+
+  @@index([siteId, isActive]) // FAST lookup for generating the Agent Manifest
+}
+
+model AgentEvent {
+  id          String   @id @default(uuid())
+  type        String   // "INTERCEPT", "ERROR", "LATENCY"
+  path        String
+  
+  // Details JSON string
+  details     String?
+  occurredAt  DateTime @default(now())
+  
+  siteId      String
+  site        Site     @relation(fields: [siteId], references: [id])
+}

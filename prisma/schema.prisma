@@ -11,11 +11,52 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  sites     Site[]
+  id            String    @id @default(uuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  sites         Site[]
+}
+
+model Account {
+  id                 String  @id @default(uuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
 
 model Site {
@@ -25,7 +66,7 @@ model Site {
   createdAt   DateTime @default(now())
   
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   pages       Page[]
   rules       OptimizationRule[]
@@ -43,7 +84,7 @@ model Page {
   metaDesc    String?
   
   siteId      String
-  site        Site     @relation(fields: [siteId], references: [id])
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
   
   @@unique([siteId, path]) // Ensure unique paths per site
 }
@@ -67,7 +108,7 @@ model OptimizationRule {
   updatedAt   DateTime @updatedAt
   
   siteId      String
-  site        Site     @relation(fields: [siteId], references: [id])
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   @@index([siteId, isActive]) // FAST lookup for generating the Agent Manifest
 }
@@ -82,5 +123,5 @@ model AgentEvent {
   occurredAt  DateTime @default(now())
   
   siteId      String
-  site        Site     @relation(fields: [siteId], references: [id])
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
 }

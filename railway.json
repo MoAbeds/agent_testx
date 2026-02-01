@@ -1,0 +1,9 @@
+{
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "npx prisma db push && node prisma/seed.js && npm run build"
+  },
+  "deploy": {
+    "startCommand": "npm run start"
+  }
+}

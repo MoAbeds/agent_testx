@@ -5,6 +5,7 @@ import { Activity, ShieldCheck, DollarSign, Bot, Globe, FileSearch, ExternalLink
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import ScanButton from '@/components/ScanButton';
+import AddSiteForm from '@/components/AddSiteForm';
 
 // Force dynamic rendering so we get fresh DB stats on refresh
 export const dynamic = 'force-dynamic';
@@ -162,6 +163,12 @@ export default async function Dashboard() {
               <Globe className="text-gray-400" size={20} />
               Sites
             </h3>
+            
+            {/* Add Site Form */}
+            <div className="mb-4">
+              <AddSiteForm />
+            </div>
+            
             {sites.length === 0 ? (
               <p className="text-gray-500 text-sm">No sites configured yet.</p>
             ) : (

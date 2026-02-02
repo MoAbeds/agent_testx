@@ -89,9 +89,13 @@ export default async function InstallPage() {
               <p className="text-xs text-gray-500 leading-relaxed">
                 Download the <strong>Mojo Guardian WordPress Bridge</strong>. This handles server-side 301 redirects before your page even loads.
               </p>
-              <button className="mt-6 w-full py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-bold hover:bg-white/10 transition-all">
-                Download .zip (Coming Soon)
-              </button>
+              <a 
+                href="https://github.com/MoAbeds/agent_testx/raw/main/integrations/wordpress/mojo-guardian.php"
+                download
+                className="mt-6 inline-block w-full text-center py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-bold hover:bg-white/10 transition-all"
+              >
+                Download plugin.php
+              </a>
             </div>
 
             <div className="bg-[#0a0a0a] border border-gray-800 rounded-2xl p-6">

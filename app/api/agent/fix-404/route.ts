@@ -37,10 +37,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No valid target pages found to redirect to. Crawl some working pages first.' }, { status: 400 });
     }
 
-    // 3. Ask Gemini to pair them
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    
-    const prompt = `Act as an SEO Expert. 
+    // 3. Ask Gemini to pair them (with simple fallback if no key)
+    const googleKey = process.env.GOOGLE_AI_KEY;
+    let mappings = [];
+
+    if (googleKey) {
+      try {
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const prompt = `Act as an SEO Expert. 
 I have the following broken (404) URLs on my website:
 ${deadPages.map(p => p.path).join('\n')}
 
@@ -50,9 +54,29 @@ ${targetPaths.join('\n')}
 For each broken URL, find the most relevant valid target URL to redirect to.
 Return ONLY a JSON array of objects: [{"from": "/broken-path", "to": "/valid-path", "reasoning": "..."}]`;
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-    const mappings = JSON.parse(responseText);
+        const result = await model.generateContent(prompt);
+        const responseText = result.response.text().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+        mappings = JSON.parse(responseText);
+      } catch (aiErr) {
+        console.error('[Fix-404] AI pairing failed, falling back to string matching:', aiErr);
+      }
+    }
+
+    // Heuristic Fallback: String matching if AI fails or key missing
+    if (mappings.length === 0) {
+      console.log('[Fix-404] Using heuristic string matching');
+      for (const dead of deadPages) {
+        // Just redirect everything to homepage as ultimate fallback, 
+        // or try to find a path that contains a similar word
+        const slug = dead.path.split('/').pop() || '';
+        const match = targetPaths.find(p => slug && p.includes(slug)) || '/';
+        mappings.push({
+          from: dead.path,
+          to: match,
+          reasoning: 'Paired using heuristic string matching (AI unavailable)'
+        });
+      }
+    }
 
     const createdRules = [];
 

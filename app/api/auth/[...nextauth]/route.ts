@@ -7,7 +7,7 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 const handler = NextAuth({
-  adapter: PrismaAdapter(prisma),
+  // adapter: PrismaAdapter(prisma), // Disabled for testing
   session: {
     strategy: "jwt", // Use JWT for more robust sessions on serverless
   },

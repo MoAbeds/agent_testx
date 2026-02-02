@@ -8,7 +8,7 @@ interface Event {
   type: string;
   path: string;
   details: string | null;
-  occurredAt: string;
+  occurredAt: any;
 }
 
 export default function AuditFeed({ initialEvents, siteId }: { initialEvents: Event[], siteId: string }) {

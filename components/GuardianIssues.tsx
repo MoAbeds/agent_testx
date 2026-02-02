@@ -7,7 +7,7 @@ interface Issue {
   id: string;
   type: string;
   path: string;
-  details: string;
+  details: string | null;
 }
 
 export default function GuardianIssues({ initialIssues, siteId }: { initialIssues: Issue[], siteId: string }) {

@@ -2,13 +2,29 @@ import { prisma } from '@/lib/prisma';
 import GuardianIssues from '@/components/GuardianIssues';
 import AuditFeed from '@/components/AuditFeed';
 import ResearchButton from '@/components/ResearchButton';
+import SiteManager from '@/components/SiteManager';
 import { Shield, Target, Search, Sparkles } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-export default async function GuardianPage() {
-  // We'll grab the first site for the demo/prototype
-  const site = await prisma.site.findFirst({
+export default async function GuardianPage({ searchParams }: { searchParams: { siteId?: string } }) {
+  const allSites = await prisma.site.findMany({
+    select: { id: true, domain: true }
+  });
+
+  const selectedSiteId = searchParams.siteId || allSites[0]?.id;
+
+  if (!selectedSiteId) {
+    return (
+      <div className="p-8 text-center">
+        <h1 className="text-2xl font-bold text-white mb-4">No Site Found</h1>
+        <p className="text-gray-400">Please connect a site in the Overview first.</p>
+      </div>
+    );
+  }
+
+  const site = await prisma.site.findUnique({
+    where: { id: selectedSiteId },
     include: {
       events: {
         orderBy: { occurredAt: 'desc' },
@@ -17,14 +33,7 @@ export default async function GuardianPage() {
     }
   });
 
-  if (!site) {
-    return (
-      <div className="p-8 text-center">
-        <h1 className="text-2xl font-bold text-white mb-4">No Site Found</h1>
-        <p className="text-gray-400">Please connect a site in the Overview first.</p>
-      </div>
-    );
-  }
+  if (!site) return <div>Site not found</div>;
 
   // Find 404s and SEO Gaps
   const issues = await prisma.agentEvent.findMany({
@@ -58,20 +67,24 @@ export default async function GuardianPage() {
           </p>
         </div>
 
-        <div className="flex gap-3">
-            <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl px-4 py-3 flex items-center gap-3">
-                <Target className="text-gray-500" size={20} />
-                <div>
-                    <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold block">Authority</span>
-                    <span className="text-lg font-bold text-white font-mono">82/100</span>
-                </div>
-            </div>
-            <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl px-4 py-3 flex items-center gap-3">
-                <Search className="text-gray-500" size={20} />
-                <div>
-                    <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold block">Visibility</span>
-                    <span className="text-lg font-bold text-white font-mono">1.2k</span>
-                </div>
+        <div className="flex flex-wrap items-end gap-3">
+            <SiteManager sites={allSites} currentSiteId={site.id} />
+            
+            <div className="flex gap-3">
+              <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl px-4 py-3 flex items-center gap-3">
+                  <Target className="text-gray-500" size={20} />
+                  <div>
+                      <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold block">Authority</span>
+                      <span className="text-lg font-bold text-white font-mono">82/100</span>
+                  </div>
+              </div>
+              <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl px-4 py-3 flex items-center gap-3">
+                  <Search className="text-gray-500" size={20} />
+                  <div>
+                      <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold block">Visibility</span>
+                      <span className="text-lg font-bold text-white font-mono">1.2k</span>
+                  </div>
+              </div>
             </div>
         </div>
       </header>

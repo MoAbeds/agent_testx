@@ -53,6 +53,18 @@ async function runTests() {
     console.log(`   📦 Rules in Manifest: ${Object.keys(manData.rules || {}).length}`);
   } catch (e) { console.log("   ❌ Error:", e.message); }
 
+  console.log(`\n📍 TEST 5: FIX SEO GAPS`);
+  try {
+    const gapRes = await fetch('http://localhost:3000/api/agent/fix-gaps', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ siteId: site.id })
+    });
+    const gapData = await gapRes.json();
+    console.log("   ✅ Result:", gapData.success ? "SUCCESS" : "FAILED", JSON.stringify(gapData));
+    console.log(`   ✨ Optimizations Applied: ${gapData.appliedFixes || 0}`);
+  } catch (e) { console.log("   ❌ Error:", e.message); }
+
   console.log("\n🏁 TESTS COMPLETE.");
 }
 

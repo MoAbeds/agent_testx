@@ -38,14 +38,19 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
   const fixAllGaps = async () => {
     setOptimizing(true);
     try {
-      // In a production app, we'd have a bulk optimize endpoint.
-      // For now, we'll inform the user to run optimizations from the page list 
-      // or implement a simple loop here.
-      alert("AI is analyzing and generating optimizations for all detected gaps. Check the Rules engine in 30 seconds.");
-      // Simulated bulk call
-      setIssues(issues.filter(i => i.type !== 'SEO_GAP'));
+      const res = await fetch('/api/agent/fix-gaps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`Successfully optimized ${data.appliedFixes} pages! Checks the Audit Trail below.`);
+        setIssues(issues.filter(i => i.type !== 'SEO_GAP'));
+      }
     } catch (e) {
       console.error(e);
+      alert("Bulk optimization failed.");
     } finally {
       setOptimizing(false);
     }

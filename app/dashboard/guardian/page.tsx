@@ -45,7 +45,7 @@ export default async function GuardianPage({ searchParams }: { searchParams: { s
   });
 
   // Extract keywords if present
-  let keywords = { industry: 'N/A', topic: 'N/A', detailed: [] };
+  let keywords = { industry: 'N/A', topic: 'N/A', detailed: [], visibility: '0', authority: '0' };
   if (site.targetKeywords) {
     try {
       keywords = JSON.parse(site.targetKeywords);
@@ -75,14 +75,14 @@ export default async function GuardianPage({ searchParams }: { searchParams: { s
                   <Target className="text-gray-500" size={18} />
                   <div>
                       <span className="text-[8px] md:text-[10px] uppercase tracking-widest text-gray-500 font-bold block">Authority</span>
-                      <span className="text-sm md:text-lg font-bold text-white font-mono">82/100</span>
+                      <span className="text-sm md:text-lg font-bold text-white font-mono">{keywords.authority}/100</span>
                   </div>
               </div>
               <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl px-3 py-2 md:px-4 md:py-3 flex items-center gap-3">
                   <Search className="text-gray-500" size={18} />
                   <div>
                       <span className="text-[8px] md:text-[10px] uppercase tracking-widest text-gray-500 font-bold block">Visibility</span>
-                      <span className="text-sm md:text-lg font-bold text-white font-mono">1.2k</span>
+                      <span className="text-sm md:text-lg font-bold text-white font-mono">{keywords.visibility}</span>
                   </div>
               </div>
             </div>

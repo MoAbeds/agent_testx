@@ -18,8 +18,11 @@ export async function GET(request: Request) {
   });
 
   if (!site) {
+    console.log(`[API] Agent Auth Failed: Invalid API Key ${apiKey}`);
     return NextResponse.json({ error: 'Invalid API Key' }, { status: 403 });
   }
+
+  console.log(`[API] Agent Syncing: ${site.domain} (${site.id})`);
 
   // 3. Fetch Active Rules (DB Lookup)
   const dbRules = await prisma.optimizationRule.findMany({
@@ -28,6 +31,8 @@ export async function GET(request: Request) {
       isActive: true 
     }
   });
+
+  console.log(`[API] Found ${dbRules.length} active rules for ${site.domain}`);
 
   // 4. Transform DB Rules into Manifest Format
   const formattedRules: Record<string, any> = {};

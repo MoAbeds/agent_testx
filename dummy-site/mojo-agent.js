@@ -31,6 +31,9 @@ async function fetchManifest() {
       manifestCache.rules = response.data.rules;
       manifestCache.timestamp = Date.now();
       console.log('[Mojo SDK] Sync Successful:', Object.keys(manifestCache.rules).length, 'rules active.');
+      if (Object.keys(manifestCache.rules).length > 0) {
+        console.log('[Mojo SDK] Active Rules:', JSON.stringify(manifestCache.rules));
+      }
     }
   } catch (error) {
     console.error('[Mojo SDK] Sync failed:', error.message);

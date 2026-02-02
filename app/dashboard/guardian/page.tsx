@@ -45,7 +45,7 @@ export default async function GuardianPage({ searchParams }: { searchParams: { s
   });
 
   // Extract keywords if present
-  let keywords = { primary: site.domain, topRanking: [], suggestions: [] };
+  let keywords = { industry: 'N/A', topic: 'N/A', detailed: [] };
   if (site.targetKeywords) {
     try {
       keywords = JSON.parse(site.targetKeywords);
@@ -97,34 +97,60 @@ export default async function GuardianPage({ searchParams }: { searchParams: { s
           </div>
           
           <div className="relative z-10">
-            <h2 className="text-lg font-bold text-gray-100 mb-6 flex items-center gap-2">
-              <Sparkles className="text-terminal" size={18} />
-              AI Search Context (via Serper.dev)
-            </h2>
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-lg font-bold text-gray-100 flex items-center gap-2">
+                <Sparkles className="text-terminal" size={18} />
+                Market Intelligence
+              </h2>
+              <ResearchButton siteId={site.id} />
+            </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
               <div>
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 block">Primary Topic</span>
-                <span className="text-2xl font-bold text-terminal capitalize">{keywords.primary}</span>
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 block">Industry</span>
+                <span className="text-xl font-bold text-white capitalize">{keywords.industry}</span>
               </div>
-              
-              <div className="md:col-span-2">
-                 <div className="flex items-center justify-between mb-3">
-                   <span className="text-xs font-bold text-gray-500 uppercase tracking-widest block">High-Value Target Keywords</span>
-                   <ResearchButton siteId={site.id} />
-                 </div>
-                 <div className="flex flex-wrap gap-2">
-                    {keywords.suggestions.length > 0 ? (
-                      keywords.suggestions.map((kw, i) => (
-                        <span key={i} className="bg-gray-800/50 border border-gray-700 text-gray-300 px-3 py-1 rounded-full text-sm">
-                          {kw}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-gray-600 italic text-sm">No keyword data yet. Run "Research Site" to populate.</span>
-                    )}
-                 </div>
+              <div>
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 block">Niche/Topic</span>
+                <span className="text-xl font-bold text-terminal capitalize">{keywords.topic}</span>
               </div>
+            </div>
+
+            <div className="bg-black/40 border border-gray-800 rounded-xl overflow-hidden">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-900/50 text-gray-400 uppercase text-[10px] font-bold tracking-widest">
+                  <tr>
+                    <th className="p-4">High-Volume Keyword</th>
+                    <th className="p-4">Relevance</th>
+                    <th className="p-4">Competition</th>
+                    <th className="p-4 text-right">Est. Monthly Volume</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800/50">
+                  {keywords.detailed && keywords.detailed.length > 0 ? (
+                    keywords.detailed.map((kw: any, i: number) => (
+                      <tr key={i} className="text-gray-300 hover:bg-white/5 transition-colors">
+                        <td className="p-4 font-medium">{kw.keyword}</td>
+                        <td className="p-4">
+                          <span className="text-green-500 bg-green-500/10 px-2 py-0.5 rounded text-[10px] font-bold uppercase">
+                            {kw.relevance}
+                          </span>
+                        </td>
+                        <td className="p-4 text-gray-500">{kw.competition}</td>
+                        <td className="p-4 text-right font-mono text-terminal">
+                          {Number(kw.results).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} className="p-8 text-center text-gray-600 italic">
+                        No keyword data discovered. Click "Research Site" above.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

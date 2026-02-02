@@ -42,10 +42,14 @@ export async function GET(request: Request) {
       // Parse the JSON string payload back into an object
       const payload = JSON.parse(rule.payload);
       
+      // Ensure we use the exact path as the key
+      const cleanPath = rule.targetPath.startsWith('/') ? rule.targetPath : `/${rule.targetPath}`;
+      
       // Merge payload into the rule object (flattened for the agent)
-      formattedRules[rule.targetPath] = {
+      formattedRules[cleanPath] = {
         ...payload,
-        ruleId: rule.id
+        ruleId: rule.id,
+        type: rule.type
       };
     } catch (e) {
       console.error(`Failed to parse rule payload for ${rule.id}`, e);

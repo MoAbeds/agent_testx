@@ -63,6 +63,7 @@ export function Sidebar() {
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" />
           <NavItem href="/dashboard/guardian" icon={ShieldCheck} label="Guardian" />
+          <NavItem href="/dashboard/install" icon={Zap} label="Deploy Agent" />
           <NavItem href="/dashboard/reports" icon={FileText} label="Reports" />
           <NavItem href="/dashboard/logs" icon={Bot} label="AI Logs" />
           <NavItem href="/dashboard/rules" icon={SettingsIcon} label="Rules" />

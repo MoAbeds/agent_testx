@@ -4,7 +4,7 @@ const cheerio = require('cheerio');
 // Configuration from environment variables
 const API_KEY = process.env.MOJO_API_KEY;
 const MANIFEST_URL = process.env.MOJO_MANIFEST_URL;
-const REFRESH_INTERVAL = 60000; // 1 minute
+const REFRESH_INTERVAL = 10000; // Sync every 10 seconds for faster testing
 
 if (!API_KEY || !MANIFEST_URL) {
   console.error('[Mojo SDK] Error: MOJO_API_KEY or MOJO_MANIFEST_URL is not set.');
@@ -21,6 +21,7 @@ async function fetchManifest() {
   if (!API_KEY || !MANIFEST_URL) return;
   
   try {
+    console.log(`[Mojo SDK] Syncing with ${MANIFEST_URL}...`);
     const response = await axios.get(MANIFEST_URL, {
       headers: {
         'Authorization': `Bearer ${API_KEY}`
@@ -29,7 +30,7 @@ async function fetchManifest() {
     if (response.data && response.data.rules) {
       manifestCache.rules = response.data.rules;
       manifestCache.timestamp = Date.now();
-      console.log('[Mojo SDK] Manifest synced:', Object.keys(manifestCache.rules).length, 'protection rules loaded.');
+      console.log('[Mojo SDK] Sync Successful:', Object.keys(manifestCache.rules).length, 'rules active.');
     }
   } catch (error) {
     console.error('[Mojo SDK] Sync failed:', error.message);
@@ -42,11 +43,17 @@ setInterval(fetchManifest, REFRESH_INTERVAL);
 
 // The Mojo Guardian Middleware
 const mojoGuardian = function(req, res, next) {
-  const rule = manifestCache.rules[req.path];
+  // Normalize path (remove trailing slash except for root)
+  const cleanPath = req.path.length > 1 ? req.path.replace(/\/$/, '') : req.path;
+  const rule = manifestCache.rules[cleanPath];
+
+  if (rule) {
+    console.log(`[Mojo SDK] Match found for ${cleanPath}`);
+  }
 
   // 1. Handle Redirects (High Priority)
   if (rule && rule.redirectTo) {
-    console.log(`[Mojo SDK] Intercepted 404. Redirecting ${req.path} -> ${rule.redirectTo}`);
+    console.log(`[Mojo SDK] 301 Redirect: ${cleanPath} -> ${rule.redirectTo}`);
     return res.redirect(301, rule.redirectTo);
   }
 
@@ -65,7 +72,7 @@ const mojoGuardian = function(req, res, next) {
           } else {
             $('head').prepend(`<title>${rule.title}</title>`);
           }
-          console.log(`[Mojo SDK] Optimizing Title: ${rule.title}`);
+          console.log(`[Mojo SDK] Applied Title Override: ${rule.title}`);
         }
 
         // Inject Meta Description
@@ -76,18 +83,19 @@ const mojoGuardian = function(req, res, next) {
           } else {
             $('head').append(`<meta name="description" content="${desc}">`);
           }
-          console.log(`[Mojo SDK] Optimizing Meta: ${desc.substring(0, 30)}...`);
+          console.log(`[Mojo SDK] Applied Meta Override: ${desc.substring(0, 30)}...`);
         }
 
         // Inject Schema
         if (rule.schema) {
           $('head').append(`<script type="application/ld+json">${JSON.stringify(rule.schema)}</script>`);
+          console.log(`[Mojo SDK] Applied Schema Injection`);
         }
 
         res.send = originalSend;
         return res.send.call(this, $.html());
       } catch (err) {
-        console.error('[Mojo SDK] Transformation error:', err);
+        console.error('[Mojo SDK] HTML Transformation error:', err);
       }
     }
     

@@ -116,28 +116,28 @@ export default async function GuardianPage({ searchParams }: { searchParams: { s
               </div>
             </div>
 
-            <div className="bg-black/40 border border-gray-800 rounded-xl overflow-hidden">
-              <table className="w-full text-left text-sm">
+            <div className="bg-black/40 border border-gray-800 rounded-xl overflow-x-auto scrollbar-thin scrollbar-thumb-gray-800">
+              <table className="w-full text-left text-sm min-w-[600px]">
                 <thead className="bg-gray-900/50 text-gray-400 uppercase text-[10px] font-bold tracking-widest">
                   <tr>
-                    <th className="p-4">High-Volume Keyword</th>
-                    <th className="p-4">Relevance</th>
-                    <th className="p-4">Competition</th>
-                    <th className="p-4 text-right">Est. Monthly Volume</th>
+                    <th className="p-4 whitespace-nowrap">High-Volume Keyword</th>
+                    <th className="p-4 whitespace-nowrap">Relevance</th>
+                    <th className="p-4 whitespace-nowrap hidden md:table-cell">Competition</th>
+                    <th className="p-4 text-right whitespace-nowrap">Est. Monthly Volume</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800/50">
                   {keywords.detailed && keywords.detailed.length > 0 ? (
                     keywords.detailed.map((kw: any, i: number) => (
                       <tr key={i} className="text-gray-300 hover:bg-white/5 transition-colors">
-                        <td className="p-4 font-medium">{kw.keyword}</td>
+                        <td className="p-4 font-medium whitespace-nowrap">{kw.keyword}</td>
                         <td className="p-4">
                           <span className="text-green-500 bg-green-500/10 px-2 py-0.5 rounded text-[10px] font-bold uppercase">
                             {kw.relevance}
                           </span>
                         </td>
-                        <td className="p-4 text-gray-500">{kw.competition}</td>
-                        <td className="p-4 text-right font-mono text-terminal">
+                        <td className="p-4 text-gray-500 hidden md:table-cell">{kw.competition}</td>
+                        <td className="p-4 text-right font-mono text-terminal whitespace-nowrap">
                           {Number(kw.results).toLocaleString()}
                         </td>
                       </tr>

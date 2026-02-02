@@ -1,117 +1,108 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// Simple HTML parser functions to avoid cheerio's undici dependency issues
+// Simple HTML parsers
 function extractTitle(html: string): string | null {
   const match = html.match(/<title[^>]*>([^<]*)<\/title>/i);
   return match ? match[1].trim() : null;
 }
 
 function extractMetaDescription(html: string): string | null {
-  // Match meta description with various quote styles and attribute orders
   const patterns = [
     /<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["'][^>]*>/i,
     /<meta[^>]+content=["']([^"']*)["'][^>]+name=["']description["'][^>]*>/i,
   ];
-  
   for (const pattern of patterns) {
     const match = html.match(pattern);
-    if (match) {
-      return match[1].trim();
-    }
+    if (match) return match[1].trim();
   }
   return null;
 }
 
+function extractLinks(html: string, domain: string): string[] {
+  const links: string[] = [];
+  const regex = /<a[^>]+href=["']([^"']*)["'][^>]*>/gi;
+  let match;
+  
+  while ((match = regex.exec(html)) !== null) {
+    let href = match[1];
+    
+    // Normalize links
+    if (href.startsWith('/')) {
+      links.push(href);
+    } else if (href.startsWith(domain) || href.startsWith(`https://${domain}`) || href.startsWith(`http://${domain}`)) {
+      try {
+        const url = new URL(href);
+        links.push(url.pathname);
+      } catch (e) {}
+    }
+  }
+  // Return unique internal paths
+  return [...new Set(links)];
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { domain } = body;
+    const { domain, maxPages = 20 } = await request.json();
 
-    if (!domain) {
-      return NextResponse.json(
-        { error: 'Domain is required' },
-        { status: 400 }
-      );
-    }
+    if (!domain) return NextResponse.json({ error: 'Domain is required' }, { status: 400 });
 
-    // Find the site by domain
-    const site = await prisma.site.findFirst({
-      where: { domain }
-    });
+    const site = await prisma.site.findFirst({ where: { domain } });
+    if (!site) return NextResponse.json({ error: 'Site not found' }, { status: 404 });
 
-    if (!site) {
-      return NextResponse.json(
-        { error: 'Site not found. Please add the site first.' },
-        { status: 404 }
-      );
-    }
+    const queue = ['/'];
+    const visited = new Set<string>();
+    const results = [];
 
-    // Fetch the homepage HTML
-    const url = domain.startsWith('http') ? domain : `https://${domain}`;
-    let html: string;
-    let status: number;
+    while (queue.length > 0 && visited.size < maxPages) {
+      const path = queue.shift()!;
+      if (visited.has(path)) continue;
+      visited.add(path);
 
-    try {
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'MojoSEO-Scanner/1.0'
+      const url = `https://${domain}${path}`;
+      try {
+        const response = await fetch(url, { headers: { 'User-Agent': 'MojoScanner/2.0' } });
+        const status = response.status;
+        
+        if (status === 404) {
+          // Log 404 in AgentEvents for the "Undo/Fix" system
+          await prisma.agentEvent.create({
+            data: {
+              siteId: site.id,
+              type: '404_DETECTED',
+              path: path,
+              details: JSON.stringify({ message: `Broken link found during scan` })
+            }
+          });
         }
-      });
-      status = response.status;
-      html = await response.text();
-    } catch (fetchError) {
-      return NextResponse.json(
-        { error: `Failed to fetch ${url}: ${fetchError}` },
-        { status: 502 }
-      );
+
+        const html = await response.text();
+        const title = extractTitle(html);
+        const metaDesc = extractMetaDescription(html);
+
+        // Save Page
+        await prisma.page.upsert({
+          where: { siteId_path: { siteId: site.id, path } },
+          update: { title, metaDesc, status, lastCrawled: new Date() },
+          create: { siteId: site.id, path, title, metaDesc, status, lastCrawled: new Date() }
+        });
+
+        results.push({ path, status });
+
+        // Extract and add new links to queue
+        if (status === 200) {
+          const newLinks = extractLinks(html, domain);
+          for (const link of newLinks) {
+            if (!visited.has(link)) queue.push(link);
+          }
+        }
+      } catch (e) {
+        console.error(`Failed crawling ${path}:`, e);
+      }
     }
 
-    // Parse HTML to extract SEO data
-    const title = extractTitle(html);
-    const metaDesc = extractMetaDescription(html);
-
-    // Upsert the page (homepage = path "/")
-    const page = await prisma.page.upsert({
-      where: {
-        siteId_path: {
-          siteId: site.id,
-          path: '/'
-        }
-      },
-      update: {
-        title,
-        metaDesc,
-        status,
-        lastCrawled: new Date()
-      },
-      create: {
-        siteId: site.id,
-        path: '/',
-        title,
-        metaDesc,
-        status,
-        lastCrawled: new Date()
-      }
-    });
-
-    return NextResponse.json({
-      success: true,
-      page: {
-        id: page.id,
-        path: page.path,
-        title: page.title,
-        metaDesc: page.metaDesc,
-        status: page.status,
-        lastCrawled: page.lastCrawled
-      }
-    });
-
+    return NextResponse.json({ success: true, pagesCrawled: results.length, results });
   } catch (error) {
-    console.error('Scan error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

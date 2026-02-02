@@ -26,45 +26,58 @@ async function fetchManifest() {
     }
   } catch (error) {
     console.error('[Mojo SDK] Failed to fetch manifest:', error.message);
-    // Keep using old cache if fetch fails
   }
 }
 
-// Initial fetch (non-blocking for app startup, but started immediately)
 fetchManifest();
-
-// Periodic refresh
 setInterval(fetchManifest, REFRESH_INTERVAL);
 
 // The Middleware
 const mojoMiddleware = function(req, res, next) {
-  // 1. Check if current path matches any rule
-  // The manifest rules are an object keyed by path (e.g., "/")
   const rule = manifestCache.rules[req.path];
 
   if (!rule) {
     return next();
   }
 
-  console.log(`[Mojo SDK] Rule matched for ${req.path}:`, rule);
+  // 1. Handle Redirects (Highest priority)
+  if (rule.redirectTo) {
+    console.log(`[Mojo SDK] 301 Redirect: ${req.path} -> ${rule.redirectTo}`);
+    return res.redirect(301, rule.redirectTo);
+  }
 
-  // 2. Hijack res.send to modify the response
+  // 2. Handle SEO Injections (HTML modification)
   const originalSend = res.send;
 
   res.send = function(body) {
-    // Only modify if it's HTML
     if (typeof body === 'string' && body.includes('<html')) {
       try {
         const $ = cheerio.load(body);
         
-        // Apply transformations based on the rule
-        // Update Title
+        // Inject Title
         if (rule.title) {
-          $('title').text(rule.title);
-          console.log(`[Mojo SDK] Injected title: ${rule.title}`);
+          if ($('title').length) {
+            $('title').text(rule.title);
+          } else {
+            $('head').prepend(`<title>${rule.title}</title>`);
+          }
         }
 
-        // Restore original send and return modified body
+        // Inject Meta Description
+        if (rule.metaDescription || rule.metaDesc) {
+          const desc = rule.metaDescription || rule.metaDesc;
+          if ($('meta[name="description"]').length) {
+            $('meta[name="description"]').attr('content', desc);
+          } else {
+            $('head').append(`<meta name="description" content="${desc}">`);
+          }
+        }
+
+        // Inject Schema (if present)
+        if (rule.schema) {
+          $('head').append(`<script type="application/ld+json">${JSON.stringify(rule.schema)}</script>`);
+        }
+
         res.send = originalSend;
         return res.send.call(this, $.html());
       } catch (err) {
@@ -72,7 +85,6 @@ const mojoMiddleware = function(req, res, next) {
       }
     }
     
-    // Fallback if not HTML or error
     res.send = originalSend;
     return res.send.call(this, body);
   };

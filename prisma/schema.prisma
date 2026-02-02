@@ -60,10 +60,11 @@ model VerificationToken {
 }
 
 model Site {
-  id          String   @id @default(uuid())
-  domain      String   // e.g., "example.com"
-  apiKey      String   @unique // The key the Agent uses to authenticate
-  createdAt   DateTime @default(now())
+  id              String   @id @default(uuid())
+  domain          String   // e.g., "example.com"
+  apiKey          String   @unique // The key the Agent uses to authenticate
+  targetKeywords  String?  // JSON string of keywords from Serper
+  createdAt       DateTime @default(now())
   
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -82,6 +83,7 @@ model Page {
   // Current SEO State (Snapshot)
   title       String?
   metaDesc    String?
+  h1          String?
   
   siteId      String
   site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
@@ -115,12 +117,14 @@ model OptimizationRule {
 
 model AgentEvent {
   id          String   @id @default(uuid())
-  type        String   // "INTERCEPT", "ERROR", "LATENCY"
+  type        String   // "INTERCEPT", "ERROR", "LATENCY", "404_DETECTED", "AUTO_FIX", "UNDO_ACTION"
   path        String
   
   // Details JSON string
   details     String?
   occurredAt  DateTime @default(now())
+  
+  ruleId      String?  // Reference to rule if applicable
   
   siteId      String
   site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)

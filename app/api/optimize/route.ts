@@ -171,14 +171,18 @@ async function generateGeminiOptimization(
   
   // Build the prompt with optional keyword data
   let keywordContext = '';
-  if (keywords && keywords.length > 0) {
-    keywordContext = `\nDATA: This page ranks for these keywords in Google Search: [${keywords.join(', ')}]. Incorporate them naturally into the title and meta description to improve relevance.`;
+  
+  // Priority 1: Serper Keywords (Global Site Context)
+  const siteKeywords = keywords && keywords.length > 0 ? keywords : null;
+  
+  if (siteKeywords) {
+    keywordContext = `\nTARGET KEYWORDS: This website targets these high-value keywords: [${siteKeywords.join(', ')}]. Prioritize these in the optimization.`;
   }
   
   const prompt = `Act as an Elite SEO Strategist.
 Current Title: ${current.title || '(empty)'}
 Current Meta: ${current.metaDesc || '(empty)'}${keywordContext}
-Goal: Rewrite these to be more click-worthy, use power words, and keep optimal length (Title < 60, Meta < 160).${keywords ? ' Leverage the ranking keywords to maximize relevance.' : ''}
+Goal: Rewrite these to be more click-worthy, use power words, and keep optimal length (Title < 60, Meta < 160). Leverage the TARGET KEYWORDS to maximize relevance and ranking potential.
 Return ONLY a JSON object: { "title": "...", "metaDesc": "...", "reasoning": "..." }`;
 
   const result = await model.generateContent(prompt);
@@ -222,12 +226,23 @@ export async function POST(req: Request) {
     // Construct full URL for GSC query
     const fullUrl = `https://${page.site.domain}${page.path}`;
     
-    // Try to fetch GSC keywords for this page
-    let gscKeywords: string[] | null = null;
+    // 1. Try to fetch GSC keywords for this page
+    let keywords: string[] = [];
     try {
-      gscKeywords = await fetchGSCKeywords(page.site.userId, fullUrl);
+      const gscKeywords = await fetchGSCKeywords(page.site.userId, fullUrl);
+      if (gscKeywords) keywords = [...gscKeywords];
     } catch (gscError) {
-      console.error('GSC fetch failed, continuing without keywords:', gscError);
+      console.error('GSC fetch failed, continuing with Serper/Site keywords:', gscError);
+    }
+
+    // 2. Supplement with Serper keywords from the Site record
+    if (page.site.targetKeywords) {
+      try {
+        const targetObj = JSON.parse(page.site.targetKeywords);
+        const suggestions = targetObj.suggestions || [];
+        // Add top 3 suggestions to the list
+        keywords = [...new Set([...keywords, ...suggestions.slice(0, 3)])];
+      } catch (e) {}
     }
 
     // Try Gemini first, fallback to heuristics
@@ -241,7 +256,7 @@ export async function POST(req: Request) {
           metaDesc: page.metaDesc,
           path: page.path,
         },
-        gscKeywords
+        keywords
       );
       usedGemini = true;
     } catch (geminiError) {
@@ -252,7 +267,7 @@ export async function POST(req: Request) {
           metaDesc: page.metaDesc,
           path: page.path,
         }),
-        keywordsUsed: [],
+        keywordsUsed: keywords,
       };
     }
 

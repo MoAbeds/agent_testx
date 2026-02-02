@@ -102,7 +102,7 @@ export default async function GuardianPage({ searchParams }: { searchParams: { s
                 <Sparkles className="text-terminal" size={18} />
                 Market Intelligence
               </h2>
-              <ResearchButton siteId={site.id} />
+              <ResearchButton siteId={site.id} initialIndustry={keywords.industry !== 'N/A' ? keywords.industry : ''} />
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">

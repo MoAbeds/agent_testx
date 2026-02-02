@@ -6,7 +6,7 @@ const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_KEY || '');
 
 export async function POST(request: NextRequest) {
   try {
-    const { siteId } = await request.json();
+    const { siteId, manualIndustry } = await request.json();
 
     if (!siteId) return NextResponse.json({ error: 'siteId is required' }, { status: 400 });
 
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        q: `site:${site.domain}`,
+        q: manualIndustry ? `best ${manualIndustry} websites` : `site:${site.domain}`,
         num: 10
       })
     });
@@ -46,10 +46,23 @@ export async function POST(request: NextRequest) {
     const snippets = organicResults.map((r: any) => `${r.title}: ${r.snippet}`).join('\n');
     
     let analysis;
-    if (googleKey && snippets) {
+    if (googleKey && (snippets || manualIndustry)) {
       try {
         const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-        const analysisPrompt = `Analyze this website data:
+        const analysisPrompt = manualIndustry 
+          ? `Act as an SEO Strategist.
+Website: ${site.domain}
+User-Provided Industry: ${manualIndustry}
+Search Context:
+${snippets}
+
+Tasks:
+1. Confirm the Industry (refine it based on context).
+2. Identify the Core Topic/Niche.
+3. Identify 5 High-volume search queries for this industry that this site should target.
+
+Return ONLY a JSON object: {"industry": "...", "topic": "...", "queries": ["...", "..."]}`
+          : `Analyze this website data:
 Domain: ${site.domain}
 Search Results:
 ${snippets}
@@ -73,9 +86,9 @@ Return ONLY a JSON object: {"industry": "...", "topic": "...", "queries": ["..."
     // Fallback analysis if AI fails or key is missing
     if (!analysis) {
       analysis = {
-        industry: "General",
+        industry: manualIndustry || "General",
         topic: site.domain,
-        queries: [site.domain, "SEO optimization", "web rankings"]
+        queries: [manualIndustry || site.domain, "SEO optimization", "web rankings"]
       };
     }
 

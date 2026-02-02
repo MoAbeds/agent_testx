@@ -36,7 +36,6 @@ const handler = NextAuth({
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
-  trustHost: true, // Explicitly trust the host
 });
 
 export { handler as GET, handler as POST };

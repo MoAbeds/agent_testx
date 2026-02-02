@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+// Initialize Gemini
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_KEY || '');
 
 /**
- * Simulated LLM optimization function.
- * In production, this would call an actual LLM API.
+ * Fallback heuristic optimization (used if Gemini fails).
  */
-function generateOptimization(current: { title: string | null; metaDesc: string | null; path: string }) {
+function generateHeuristicOptimization(current: { title: string | null; metaDesc: string | null; path: string }) {
   const year = new Date().getFullYear();
   
   let optimizedTitle = current.title || '';
@@ -13,32 +16,25 @@ function generateOptimization(current: { title: string | null; metaDesc: string 
   
   // Title optimization heuristics
   if (!optimizedTitle) {
-    // Generate from path
     const pathName = current.path.replace(/[/-]/g, ' ').trim();
     optimizedTitle = `${pathName.charAt(0).toUpperCase() + pathName.slice(1)} | Best in ${year}`;
   } else if (optimizedTitle.length < 30) {
-    // Short title - make it more compelling
     optimizedTitle = `${optimizedTitle} - Best Guide for ${year}`;
   } else if (!optimizedTitle.includes(String(year))) {
-    // Add year if not present
     optimizedTitle = `${optimizedTitle} [${year} Edition]`;
   }
   
-  // Ensure title isn't too long (60 chars max for SEO)
   if (optimizedTitle.length > 60) {
     optimizedTitle = optimizedTitle.substring(0, 57) + '...';
   }
   
   // Meta description optimization
   if (!optimizedMetaDesc) {
-    // Generate based on title
     optimizedMetaDesc = `Discover everything about ${optimizedTitle.replace(/[|\[\]-]/g, '').trim()}. Updated for ${year} with expert insights and proven strategies.`;
   } else if (optimizedMetaDesc.length < 120) {
-    // Too short - expand it
     optimizedMetaDesc = `${optimizedMetaDesc} Learn more about our proven approach, updated for ${year}.`;
   }
   
-  // Ensure meta description isn't too long (160 chars max for SEO)
   if (optimizedMetaDesc.length > 160) {
     optimizedMetaDesc = optimizedMetaDesc.substring(0, 157) + '...';
   }
@@ -46,6 +42,42 @@ function generateOptimization(current: { title: string | null; metaDesc: string 
   return {
     title: optimizedTitle,
     metaDescription: optimizedMetaDesc,
+    reasoning: 'Generated using heuristic fallback (AI unavailable)',
+  };
+}
+
+/**
+ * Strip markdown code blocks from Gemini response
+ */
+function stripMarkdownCodeBlocks(text: string): string {
+  // Remove ```json ... ``` or ``` ... ``` wrappers
+  return text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+}
+
+/**
+ * Use Gemini AI to generate optimized SEO content.
+ */
+async function generateGeminiOptimization(current: { title: string | null; metaDesc: string | null; path: string }) {
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  
+  const prompt = `Act as an Elite SEO Strategist.
+Current Title: ${current.title || '(empty)'}
+Current Meta: ${current.metaDesc || '(empty)'}
+Goal: Rewrite these to be more click-worthy, use power words, and keep optimal length (Title < 60, Meta < 160).
+Return ONLY a JSON object: { "title": "...", "metaDesc": "...", "reasoning": "..." }`;
+
+  const result = await model.generateContent(prompt);
+  const response = result.response;
+  const text = response.text();
+  
+  // Strip markdown code blocks and parse JSON
+  const cleanedText = stripMarkdownCodeBlocks(text);
+  const parsed = JSON.parse(cleanedText);
+  
+  return {
+    title: parsed.title,
+    metaDescription: parsed.metaDesc,
+    reasoning: parsed.reasoning,
   };
 }
 
@@ -67,12 +99,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Page not found' }, { status: 404 });
     }
 
-    // Generate optimized content
-    const optimized = generateOptimization({
-      title: page.title,
-      metaDesc: page.metaDesc,
-      path: page.path,
-    });
+    // Try Gemini first, fallback to heuristics
+    let optimized;
+    let usedGemini = false;
+    
+    try {
+      optimized = await generateGeminiOptimization({
+        title: page.title,
+        metaDesc: page.metaDesc,
+        path: page.path,
+      });
+      usedGemini = true;
+    } catch (geminiError) {
+      console.error('Gemini API failed, using heuristic fallback:', geminiError);
+      optimized = generateHeuristicOptimization({
+        title: page.title,
+        metaDesc: page.metaDesc,
+        path: page.path,
+      });
+    }
 
     // Create a new OptimizationRule in Draft mode
     const rule = await prisma.optimizationRule.create({
@@ -82,7 +127,7 @@ export async function POST(req: Request) {
         type: 'REWRITE_META',
         payload: JSON.stringify(optimized),
         isActive: false, // Draft mode
-        confidence: 0.85, // AI-generated confidence
+        confidence: usedGemini ? 0.92 : 0.85, // Higher confidence for AI
       },
     });
 
@@ -90,6 +135,7 @@ export async function POST(req: Request) {
       success: true,
       rule,
       optimized,
+      source: usedGemini ? 'gemini' : 'heuristic',
     });
   } catch (error) {
     console.error('Error generating optimization:', error);

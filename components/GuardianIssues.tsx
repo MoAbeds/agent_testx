@@ -25,8 +25,14 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
       });
       const data = await res.json();
       if (data.success) {
-        alert(`Fixed ${data.fixesApplied} 404s!`);
+        if (data.message) {
+          alert(data.message);
+        } else {
+          alert(`Success! Auto-fixed ${data.fixesApplied} broken links. Check the Audit Trail.`);
+        }
         setIssues(issues.filter(i => i.type !== '404_DETECTED'));
+      } else {
+        alert(`Error: ${data.error || 'The AI could not process the fixes.'}`);
       }
     } catch (e) {
       console.error(e);

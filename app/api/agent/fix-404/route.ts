@@ -18,8 +18,11 @@ export async function POST(request: NextRequest) {
       where: { siteId, status: 404 }
     });
 
+    console.log(`[Fix-404] Found ${deadPages.length} dead pages for site ${siteId}`);
+
     if (deadPages.length === 0) {
-      return NextResponse.json({ success: true, message: 'No 404 pages found' });
+      console.log(`[Fix-404] No 404s to fix. Exiting.`);
+      return NextResponse.json({ success: true, message: 'No 404 pages found in database. Run a scan first.' });
     }
 
     // 2. Get all valid pages (targets)
@@ -28,7 +31,11 @@ export async function POST(request: NextRequest) {
       select: { path: true }
     });
 
-    const targetPaths = validPages.map(p => p.path);
+    console.log(`[Fix-404] Found ${validPages.length} valid target pages.`);
+
+    if (validPages.length === 0) {
+      return NextResponse.json({ error: 'No valid target pages found to redirect to. Crawl some working pages first.' }, { status: 400 });
+    }
 
     // 3. Ask Gemini to pair them
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });

@@ -37,6 +37,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No valid target pages found to redirect to. Crawl some working pages first.' }, { status: 400 });
     }
 
+    const targetPaths = validPages.map(p => p.path);
+
     // 3. Ask Gemini to pair them (with simple fallback if no key)
     const googleKey = process.env.GOOGLE_AI_KEY;
     let mappings = [];

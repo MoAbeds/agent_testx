@@ -19,7 +19,7 @@ export default function LandingNavbar() {
 
         {/* Login Button */}
         <Link
-          href="/api/auth/signin"
+          href="/login"
           className="px-5 py-2 text-sm font-medium text-gray-300 border border-gray-700 rounded-lg hover:bg-gray-800 hover:text-white hover:border-gray-600 transition-all"
         >
           Login

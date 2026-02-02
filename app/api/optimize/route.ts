@@ -241,7 +241,7 @@ export async function POST(req: Request) {
         const targetObj = JSON.parse(page.site.targetKeywords);
         const suggestions = targetObj.suggestions || [];
         // Add top 3 suggestions to the list
-        keywords = [...new Set([...keywords, ...suggestions.slice(0, 3)])];
+        keywords = Array.from(new Set([...keywords, ...suggestions.slice(0, 3)]));
       } catch (e) {}
     }
 

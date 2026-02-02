@@ -8,8 +8,8 @@ const prisma = new PrismaClient();
 
 const handler = NextAuth({
   adapter: PrismaAdapter(prisma),
-  pages: {
-    signIn: '/login',
+  session: {
+    strategy: "jwt", // Use JWT for more robust sessions on serverless
   },
   providers: [
     GoogleProvider({
@@ -27,15 +27,16 @@ const handler = NextAuth({
     }),
   ],
   callbacks: {
-    async session({ session, user }) {
-      if (session?.user) {
-        // @ts-ignore // Adding id to session user
-        session.user.id = user.id;
+    async session({ session, token }) {
+      if (session?.user && token.sub) {
+        // @ts-ignore
+        session.user.id = token.sub;
       }
       return session;
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
+  trustHost: true, // Explicitly trust the host
 });
 
 export { handler as GET, handler as POST };

@@ -38,7 +38,7 @@ function extractLinks(html: string, domain: string): string[] {
     }
   }
   // Return unique internal paths
-  return [...new Set(links)];
+  return Array.from(new Set(links));
 }
 
 export async function POST(request: NextRequest) {
@@ -55,8 +55,8 @@ export async function POST(request: NextRequest) {
     const results = [];
 
     while (queue.length > 0 && visited.size < maxPages) {
-      const path = queue.shift()!;
-      if (visited.has(path)) continue;
+      const path = queue.shift();
+      if (!path || visited.has(path)) continue;
       visited.add(path);
 
       const url = `https://${domain}${path}`;

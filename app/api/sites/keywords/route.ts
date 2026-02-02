@@ -34,6 +34,10 @@ export async function POST(request: NextRequest) {
       ...(data.organic?.map((r: any) => r.snippet) || [])
     ].join(' ');
 
+    // Extract brand/main topic from domain (e.g., example.com -> example)
+    const domainParts = site.domain.replace(/^www\./, '').split('.');
+    const brandName = domainParts.length > 1 ? domainParts[0] : site.domain;
+
     // Also get related searches to find high-value targets
     const relatedResponse = await fetch('https://google.serper.dev/search', {
       method: 'POST',
@@ -42,7 +46,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        q: site.domain.split('.')[0], // Search the brand/topic
+        q: brandName, // Search the brand/topic
       })
     });
     
@@ -50,7 +54,7 @@ export async function POST(request: NextRequest) {
     const relatedKeywords = relatedData.relatedSearches?.map((s: any) => s.query) || [];
 
     const keywords = {
-      primary: site.domain.split('.')[0],
+      primary: brandName,
       topRanking: data.organic?.slice(0, 5).map((r: any) => r.title) || [],
       suggestions: relatedKeywords,
       updatedAt: new Date().toISOString()

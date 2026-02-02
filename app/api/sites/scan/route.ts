@@ -50,6 +50,16 @@ export async function POST(request: NextRequest) {
     const site = await prisma.site.findFirst({ where: { domain } });
     if (!site) return NextResponse.json({ error: 'Site not found' }, { status: 404 });
 
+    console.log(`[Crawler] Starting scan for ${domain}`);
+
+    // Clear old issues for this site before fresh scan to prevent duplicates
+    await prisma.agentEvent.deleteMany({
+      where: { 
+        siteId: site.id, 
+        type: { in: ['404_DETECTED', 'SEO_GAP'] } 
+      }
+    });
+
     const queue = ['/'];
     const visited = new Set<string>();
     const results = [];
@@ -59,9 +69,14 @@ export async function POST(request: NextRequest) {
       if (!path || visited.has(path)) continue;
       visited.add(path);
 
-      const url = `https://${domain}${path}`;
+      const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+      const url = `https://${cleanDomain}${path}`;
+      console.log(`[Crawler] Fetching: ${url}`);
       try {
-        const response = await fetch(url, { headers: { 'User-Agent': 'MojoScanner/2.0' } });
+        const response = await fetch(url, { 
+          headers: { 'User-Agent': 'MojoScanner/2.0' },
+          next: { revalidate: 0 } // Bypass cache
+        });
         const status = response.status;
         
         if (status === 404) {

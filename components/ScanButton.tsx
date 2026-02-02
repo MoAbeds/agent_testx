@@ -33,6 +33,7 @@ export default function ScanButton({ domain }: ScanButtonProps) {
       }
 
       setStatus('success');
+      alert(`Scan complete! Discovered and analyzed ${data.pagesCrawled} pages.`);
       router.refresh(); // Refresh the page to show new data
       
       // Reset to idle after 2 seconds

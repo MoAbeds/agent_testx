@@ -1,6 +1,6 @@
 'use client';
 
-import { LayoutDashboard, FileText, Bot, Settings as SettingsIcon, Server, Plug, User } from 'lucide-react';
+import { LayoutDashboard, FileText, Bot, Settings as SettingsIcon, Server, Plug, User, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -14,6 +14,7 @@ export function Sidebar() {
       
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" />
+        <NavItem href="/dashboard/guardian" icon={ShieldCheck} label="Guardian" />
         <NavItem href="/dashboard/reports" icon={FileText} label="Reports" />
         <NavItem href="/dashboard/logs" icon={Bot} label="AI Logs" />
         <NavItem href="/dashboard/rules" icon={SettingsIcon} label="Rules" />

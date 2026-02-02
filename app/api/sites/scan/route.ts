@@ -70,7 +70,8 @@ export async function POST(request: NextRequest) {
       visited.add(path);
 
       const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
-      const url = `https://${cleanDomain}${path}`;
+      const protocol = cleanDomain.includes('localhost') ? 'http' : 'https';
+      const url = `${protocol}://${cleanDomain}${path}`;
       console.log(`[Crawler] Fetching: ${url}`);
       try {
         const response = await fetch(url, { 

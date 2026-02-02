@@ -37,7 +37,7 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-xl font-bold text-gray-100 flex items-center gap-2 font-serif">
           <ShieldAlert className="text-red-500" size={20} />
           Security & SEO Gaps
@@ -45,7 +45,7 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
         <button 
           onClick={fixAll404s}
           disabled={loading || !issues.some(i => i.type === '404_DETECTED')}
-          className="flex items-center gap-2 bg-terminal hover:bg-green-400 text-black text-xs font-bold px-4 py-2 rounded-lg transition-all disabled:opacity-50"
+          className="flex items-center justify-center gap-2 bg-terminal hover:bg-green-400 text-black text-xs font-bold px-4 py-2 rounded-lg transition-all disabled:opacity-50 w-full sm:w-auto"
         >
           {loading ? <RefreshCw className="animate-spin" size={14} /> : <Wand2 size={14} />}
           Auto-Fix All 404s

@@ -68,7 +68,12 @@ export default async function GuardianPage({ searchParams }: { searchParams: { s
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-            <SiteManager sites={allSites} currentSiteId={site.id} />
+            <div className="flex items-center gap-2">
+              <SiteManager sites={allSites} currentSiteId={site.id} />
+              <div className="w-32">
+                <ScanButton domain={site.domain} />
+              </div>
+            </div>
             
             <div className="flex gap-3">
               <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl px-3 py-2 md:px-4 md:py-3 flex items-center gap-3">

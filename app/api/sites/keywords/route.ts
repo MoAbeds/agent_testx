@@ -32,12 +32,17 @@ export async function POST(request: NextRequest) {
     const data = await response.json();
     
     // 2. Use Gemini to analyze the site and find its niche
+    const googleKey = process.env.GOOGLE_AI_KEY;
+    if (!googleKey) return NextResponse.json({ error: 'Google AI Key not configured' }, { status: 500 });
+
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     
     // Extract snippets for context
     const snippets = data.organic?.map((r: any) => `${r.title}: ${r.snippet}`).join('\n') || '';
     
-    const analysisPrompt = `Analyze this website data:
+    let analysis;
+    try {
+      const analysisPrompt = `Analyze this website data:
 Domain: ${site.domain}
 Search Results:
 ${snippets}
@@ -49,8 +54,19 @@ Identify:
 
 Return ONLY a JSON object: {"industry": "...", "topic": "...", "queries": ["...", "..."]}`;
 
-    const analysisResult = await model.generateContent(analysisPrompt);
-    const analysis = JSON.parse(analysisResult.response.text().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim());
+      const analysisResult = await model.generateContent(analysisPrompt);
+      const text = analysisResult.response.text();
+      const cleanedText = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+      analysis = JSON.parse(cleanedText);
+    } catch (aiError) {
+      console.error('AI Analysis failed:', aiError);
+      // Fallback analysis if AI fails
+      analysis = {
+        industry: "General",
+        topic: site.domain,
+        queries: [site.domain, "SEO optimization", "web rankings"]
+      };
+    }
 
     // 3. Search for those specific high-volume queries to get "Market Context"
     const keywordMarketData = [];

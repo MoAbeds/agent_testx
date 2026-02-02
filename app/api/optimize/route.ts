@@ -279,7 +279,7 @@ export async function POST(req: Request) {
         type: 'REWRITE_META',
         payload: JSON.stringify(optimized),
         isActive: false, // Draft mode
-        confidence: usedGemini ? (gscKeywords ? 0.95 : 0.92) : 0.85, // Higher confidence with GSC data
+        confidence: usedGemini ? (keywords.length > 0 ? 0.95 : 0.92) : 0.85, // Higher confidence with keyword data
       },
     });
 
@@ -288,7 +288,7 @@ export async function POST(req: Request) {
       rule,
       optimized,
       source: usedGemini ? 'gemini' : 'heuristic',
-      gscKeywords: gscKeywords || [],
+      keywords: keywords,
     });
   } catch (error) {
     console.error('Error generating optimization:', error);

@@ -8,14 +8,22 @@ export default function LandingNavbar() {
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-gray-800/50 bg-[#0a0a0a]/80 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-9 h-9 rounded-lg bg-terminal/10 border border-terminal/30 flex items-center justify-center group-hover:bg-terminal/20 transition-colors">
-            <Terminal size={18} className="text-terminal" />
+        <div className="flex items-center gap-12">
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="w-9 h-9 rounded-lg bg-terminal/10 border border-terminal/30 flex items-center justify-center group-hover:bg-terminal/20 transition-colors">
+              <Terminal size={18} className="text-terminal" />
+            </div>
+            <span className="text-xl font-bold tracking-tight text-white">
+              Mojo<span className="text-terminal">.</span>
+            </span>
+          </Link>
+
+          <div className="hidden md:flex items-center gap-8">
+            <Link href="/" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Features</Link>
+            <Link href="/pricing" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Pricing</Link>
+            <Link href="/dashboard" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Console</Link>
           </div>
-          <span className="text-xl font-bold tracking-tight text-white">
-            Mojo<span className="text-terminal">.</span>
-          </span>
-        </Link>
+        </div>
 
         {/* Login Button */}
         <Link

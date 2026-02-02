@@ -1,67 +1,80 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { signIn, useSession } from 'next-auth/react';
-import { ShieldCheck, LogOut, ExternalLink, RefreshCw } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { User, CreditCard, Mail, Shield } from 'lucide-react';
 
 export default function SettingsPage() {
-  const { data: session, status } = useSession();
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleConnect = () => {
-    setIsLoading(true);
-    // Trigger Google Sign In with Search Console scope
-    signIn('google', { callbackUrl: '/dashboard/settings' });
-  };
+  const { data: session } = useSession();
 
   return (
     <div className="p-8">
       <header className="mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">Settings</h1>
-        <p className="text-gray-400">Manage integrations and agent configuration</p>
+        <p className="text-gray-400">Manage your account and preferences</p>
       </header>
 
-      <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl overflow-hidden max-w-2xl">
-        <div className="p-6 border-b border-gray-800 bg-gray-900/50">
-          <h2 className="text-xl font-semibold text-gray-100 flex items-center gap-2">
-            <ShieldCheck className="text-terminal" size={24} />
-            Integrations
-          </h2>
-        </div>
-
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between p-4 bg-[#111] rounded-lg border border-gray-800">
+      <div className="max-w-2xl space-y-6">
+        {/* User Profile */}
+        <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl overflow-hidden">
+          <div className="p-6 border-b border-gray-800 bg-gray-900/50">
+            <h2 className="text-lg font-semibold text-gray-100 flex items-center gap-2">
+              <User className="text-terminal" size={20} />
+              Profile
+            </h2>
+          </div>
+          <div className="p-6 space-y-4">
             <div className="flex items-center gap-4">
-              <div className="bg-white p-2 rounded-lg">
-                <img src="https://www.google.com/favicon.ico" alt="Google" className="w-6 h-6" />
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-terminal/30 to-terminal/10 border border-terminal/20 flex items-center justify-center">
+                <User className="text-terminal" size={28} />
               </div>
               <div>
-                <h3 className="font-medium text-gray-200">Google Search Console</h3>
-                <p className="text-sm text-gray-500">Required for keyword analysis</p>
+                <h3 className="text-lg font-medium text-gray-100">
+                  {session?.user?.name || 'Admin User'}
+                </h3>
+                <p className="text-sm text-gray-500 flex items-center gap-1.5">
+                  <Mail size={14} />
+                  {session?.user?.email || 'admin@example.com'}
+                </p>
               </div>
             </div>
+          </div>
+        </div>
 
-            <div>
-              {status === 'authenticated' ? (
-                <div className="flex items-center gap-3">
-                  <span className="flex items-center gap-2 text-sm text-terminal bg-terminal/10 px-3 py-1.5 rounded-full border border-terminal/20">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
-                    Connected as {session.user?.email}
-                  </span>
-                </div>
-              ) : (
-                <button
-                  onClick={handleConnect}
-                  disabled={isLoading}
-                  className="flex items-center gap-2 px-4 py-2 bg-white text-black font-medium rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
-                >
-                  {isLoading ? <RefreshCw className="animate-spin" size={18} /> : 'Connect'}
-                </button>
-              )}
+        {/* Subscription Plan */}
+        <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl overflow-hidden">
+          <div className="p-6 border-b border-gray-800 bg-gray-900/50">
+            <h2 className="text-lg font-semibold text-gray-100 flex items-center gap-2">
+              <CreditCard className="text-terminal" size={20} />
+              Subscription
+            </h2>
+          </div>
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <span className="inline-flex items-center gap-2 text-sm font-semibold text-terminal bg-terminal/10 px-3 py-1.5 rounded-full border border-terminal/20">
+                  <Shield size={14} />
+                  Pro Plan
+                </span>
+              </div>
+              <p className="text-gray-400 text-sm">$29/month</p>
             </div>
+            <div className="space-y-2 text-sm text-gray-400">
+              <p className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-terminal" />
+                Unlimited sites
+              </p>
+              <p className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-terminal" />
+                Priority AI optimization
+              </p>
+              <p className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-terminal" />
+                Advanced analytics
+              </p>
+            </div>
+            <button className="mt-4 w-full px-4 py-2.5 bg-[#111] hover:bg-[#161616] border border-gray-800 rounded-lg text-sm text-gray-300 transition-colors">
+              Manage Subscription
+            </button>
           </div>
         </div>
       </div>

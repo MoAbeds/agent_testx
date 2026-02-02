@@ -3,6 +3,7 @@ import GuardianIssues from '@/components/GuardianIssues';
 import AuditFeed from '@/components/AuditFeed';
 import ResearchButton from '@/components/ResearchButton';
 import SiteManager from '@/components/SiteManager';
+import ScanButton from '@/components/ScanButton';
 import { Shield, Target, Search, Sparkles } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';

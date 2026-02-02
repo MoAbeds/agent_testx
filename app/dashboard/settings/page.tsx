@@ -1,7 +1,7 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
-import { User, CreditCard, Mail, Shield } from 'lucide-react';
+import { signOut, useSession } from 'next-auth/react';
+import { User, CreditCard, Mail, Shield, LogOut } from 'lucide-react';
 
 export default function SettingsPage() {
   const { data: session } = useSession();
@@ -16,11 +16,18 @@ export default function SettingsPage() {
       <div className="max-w-2xl space-y-6">
         {/* User Profile */}
         <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl overflow-hidden">
-          <div className="p-6 border-b border-gray-800 bg-gray-900/50">
+          <div className="p-6 border-b border-gray-800 bg-gray-900/50 flex justify-between items-center">
             <h2 className="text-lg font-semibold text-gray-100 flex items-center gap-2">
               <User className="text-terminal" size={20} />
               Profile
             </h2>
+            <button 
+              onClick={() => signOut({ callbackUrl: '/' })}
+              className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors"
+            >
+              <LogOut size={14} />
+              Sign Out
+            </button>
           </div>
           <div className="p-6 space-y-4">
             <div className="flex items-center gap-4">

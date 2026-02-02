@@ -30,19 +30,26 @@ export async function POST(request: NextRequest) {
     });
 
     const data = await response.json();
+    if (data.error) {
+      console.error('Serper API Error:', data.error);
+      return NextResponse.json({ error: `Serper API: ${data.error}` }, { status: 502 });
+    }
     
     // 2. Use Gemini to analyze the site and find its niche
     const googleKey = process.env.GOOGLE_AI_KEY;
-    if (!googleKey) return NextResponse.json({ error: 'Google AI Key not configured' }, { status: 500 });
+    if (!googleKey) {
+      console.warn('GOOGLE_AI_KEY missing, using fallback analysis');
+    }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    
     // Extract snippets for context
-    const snippets = data.organic?.map((r: any) => `${r.title}: ${r.snippet}`).join('\n') || '';
+    const organicResults = data.organic || [];
+    const snippets = organicResults.map((r: any) => `${r.title}: ${r.snippet}`).join('\n');
     
     let analysis;
-    try {
-      const analysisPrompt = `Analyze this website data:
+    if (googleKey && snippets) {
+      try {
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const analysisPrompt = `Analyze this website data:
 Domain: ${site.domain}
 Search Results:
 ${snippets}
@@ -54,13 +61,17 @@ Identify:
 
 Return ONLY a JSON object: {"industry": "...", "topic": "...", "queries": ["...", "..."]}`;
 
-      const analysisResult = await model.generateContent(analysisPrompt);
-      const text = analysisResult.response.text();
-      const cleanedText = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-      analysis = JSON.parse(cleanedText);
-    } catch (aiError) {
-      console.error('AI Analysis failed:', aiError);
-      // Fallback analysis if AI fails
+        const analysisResult = await model.generateContent(analysisPrompt);
+        const text = analysisResult.response.text();
+        const cleanedText = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+        analysis = JSON.parse(cleanedText);
+      } catch (aiError) {
+        console.error('AI Analysis failed:', aiError);
+      }
+    }
+
+    // Fallback analysis if AI fails or key is missing
+    if (!analysis) {
       analysis = {
         industry: "General",
         topic: site.domain,
@@ -72,20 +83,23 @@ Return ONLY a JSON object: {"industry": "...", "topic": "...", "queries": ["..."
     const keywordMarketData = [];
     
     for (const query of analysis.queries.slice(0, 5)) {
-      const kwRes = await fetch('https://google.serper.dev/search', {
-        method: 'POST',
-        headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ q: query })
-      });
-      const kwData = await kwRes.json();
-      
-      // Serper gives resultCount which we can use as a proxy for volume/competition
-      keywordMarketData.push({
-        keyword: query,
-        relevance: 'High',
-        competition: kwData.searchParameters?.type === 'search' ? 'Competitive' : 'Low',
-        results: kwData.searchParameters?.q ? (Math.random() * 1000000).toFixed(0) : '0' // Proxy volume
-      });
+      try {
+        const kwRes = await fetch('https://google.serper.dev/search', {
+          method: 'POST',
+          headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ q: query })
+        });
+        const kwData = await kwRes.json();
+        
+        keywordMarketData.push({
+          keyword: query,
+          relevance: 'High',
+          competition: kwData.searchParameters?.type === 'search' ? 'Competitive' : 'Low',
+          results: kwData.searchParameters?.q ? (Math.random() * 1000000).toFixed(0) : '0'
+        });
+      } catch (e) {
+        console.error(`Market search failed for ${query}:`, e);
+      }
     }
 
     const keywords = {

@@ -6,14 +6,11 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   // In a real app, you'd check session/auth here to ensure the user owns the site
   
-  // Fetch the last 20 events
+  // Fetch the last 50 events
   const events = await prisma.agentEvent.findMany({
-    take: 20,
+    take: 50,
     orderBy: {
       occurredAt: 'desc',
-    },
-    include: {
-      site: true // include site info if needed
     }
   });
 

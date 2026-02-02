@@ -20,18 +20,26 @@ export default async function Dashboard() {
   
   // Fetch the latest optimization rule for the Diff Viewer
   const latestRule = await prisma.optimizationRule.findFirst({
+    where: { type: 'REWRITE_META' },
     orderBy: { createdAt: 'desc' },
-    take: 1
+    include: { site: true }
   });
 
   let diffData = null;
   if (latestRule) {
     try {
         const payload = JSON.parse(latestRule.payload as string);
+        // Find the page this rule applies to to show the original content
+        const page = await prisma.page.findFirst({
+          where: { siteId: latestRule.siteId, path: latestRule.targetPath }
+        });
+
         diffData = {
-            oldTitle: "Original Title (Not tracked yet)", // We need to track original title in Page model to show here
+            path: latestRule.targetPath,
+            domain: latestRule.site.domain,
+            oldTitle: page?.title || "Original Title",
             newTitle: payload.title,
-            oldMeta: "Original Meta (Not tracked yet)",
+            oldMeta: page?.metaDesc || "Original Meta",
             newMeta: payload.metaDesc
         };
     } catch (e) {}
@@ -104,12 +112,17 @@ export default async function Dashboard() {
             <div>
                <h2 className="text-xl font-bold text-gray-100 mb-4 font-serif">Recent Optimizations</h2>
                {diffData ? (
-                   <DiffViewer 
-                        oldTitle={diffData.oldTitle} 
-                        newTitle={diffData.newTitle}
-                        oldMeta={diffData.oldMeta}
-                        newMeta={diffData.newMeta}
-                   />
+                   <div className="space-y-2">
+                     <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold ml-1">
+                       Target: <span className="text-blue-400 font-mono">{diffData.domain}{diffData.path}</span>
+                     </p>
+                     <DiffViewer 
+                          oldTitle={diffData.oldTitle} 
+                          newTitle={diffData.newTitle}
+                          oldMeta={diffData.oldMeta}
+                          newMeta={diffData.newMeta}
+                     />
+                   </div>
                ) : (
                    <div className="p-6 border border-gray-800 rounded-xl bg-gray-900/50 text-gray-500 text-center">
                        No optimizations found yet. Scan a site and click the wand!

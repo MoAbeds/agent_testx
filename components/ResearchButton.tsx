@@ -18,9 +18,12 @@ export default function ResearchButton({ siteId }: { siteId: string }) {
       if (data.success) {
         alert("Site research complete! New target keywords discovered.");
         window.location.reload();
+      } else {
+        alert(`Research failed: ${data.error || 'Unknown error'}`);
       }
     } catch (e) {
       console.error(e);
+      alert("Network error: Could not reach the research API.");
     } finally {
       setLoading(false);
     }

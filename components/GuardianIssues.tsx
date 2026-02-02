@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ShieldAlert, CheckCircle, ArrowRight, Wand2, RefreshCw } from 'lucide-react';
+import { ShieldAlert, CheckCircle, ArrowRight, Wand2, RefreshCw, Sparkles } from 'lucide-react';
 
 interface Issue {
   id: string;

@@ -79,12 +79,28 @@ export async function POST(request: NextRequest) {
         const html = await response.text();
         const title = extractTitle(html);
         const metaDesc = extractMetaDescription(html);
+        const h1Match = html.match(/<h1[^>]*>([^<]*)<\/h1>/i);
+        const h1 = h1Match ? h1Match[1].trim() : null;
+
+        // Check for SEO Gaps
+        if (!title || title.length < 10 || !metaDesc || metaDesc.length < 50 || !h1) {
+          await prisma.agentEvent.create({
+            data: {
+              siteId: site.id,
+              type: 'SEO_GAP',
+              path: path,
+              details: JSON.stringify({ 
+                message: `SEO issues found: ${!title ? 'Missing Title' : title.length < 10 ? 'Title too short' : ''} ${!metaDesc ? 'Missing Meta' : metaDesc.length < 50 ? 'Meta too short' : ''} ${!h1 ? 'Missing H1' : ''}`.trim()
+              })
+            }
+          });
+        }
 
         // Save Page
         await prisma.page.upsert({
           where: { siteId_path: { siteId: site.id, path } },
-          update: { title, metaDesc, status, lastCrawled: new Date() },
-          create: { siteId: site.id, path, title, metaDesc, status, lastCrawled: new Date() }
+          update: { title, metaDesc, h1, status, lastCrawled: new Date() },
+          create: { siteId: site.id, path, title, metaDesc, h1, status, lastCrawled: new Date() }
         });
 
         results.push({ path, status });

@@ -49,20 +49,21 @@ export async function POST(request: NextRequest) {
     if (googleKey && (snippets || manualIndustry)) {
       try {
         const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-        const analysisPrompt = manualIndustry 
-          ? `Act as an SEO Strategist.
-Website: ${site.domain}
-User-Provided Industry: ${manualIndustry}
-Search Context:
+    const analysisPrompt = manualIndustry 
+      ? `Act as an Elite SEO Strategist.
+Target Website: ${site.domain}
+Specified Industry: ${manualIndustry}
+
+Context from Search:
 ${snippets}
 
-Tasks:
-1. Confirm the Industry (refine it based on context).
-2. Identify the Core Topic/Niche.
-3. Identify 5 High-volume search queries for this industry that this site should target.
+Instructions:
+1. Ignore general SEO keywords (like "SEO optimization", "ranking", etc.).
+2. Identify 5 high-intent, high-volume search queries SPECIFIC to "${manualIndustry}".
+3. These should be what CUSTOMERS type to find a service in this niche.
 
-Return ONLY a JSON object: {"industry": "...", "topic": "...", "queries": ["...", "..."]}`
-          : `Analyze this website data:
+Return ONLY a JSON object: {"industry": "${manualIndustry}", "topic": "...", "queries": ["...", "...", "...", "...", "..."]}`
+      : `Analyze this website data:
 Domain: ${site.domain}
 Search Results:
 ${snippets}
@@ -87,8 +88,10 @@ Return ONLY a JSON object: {"industry": "...", "topic": "...", "queries": ["..."
     if (!analysis) {
       analysis = {
         industry: manualIndustry || "General",
-        topic: site.domain,
-        queries: [manualIndustry || site.domain, "SEO optimization", "web rankings"]
+        topic: manualIndustry || site.domain,
+        queries: manualIndustry 
+          ? [manualIndustry, `best ${manualIndustry}`, `${manualIndustry} features`, `${manualIndustry} pricing`, `how to use ${manualIndustry}`]
+          : [site.domain, "SEO optimization", "web rankings", "digital marketing", "organic traffic"]
       };
     }
 

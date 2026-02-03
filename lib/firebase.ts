@@ -15,6 +15,7 @@ const firebaseConfig = {
 let app;
 if (typeof window !== "undefined" || process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+  console.log("[Firebase] Target Project ID:", firebaseConfig.projectId);
 }
 
 const auth = app ? getAuth(app) : null as any;

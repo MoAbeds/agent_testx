@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, RefreshCw } from 'lucide-react';
+import { Search, RefreshCw, X } from 'lucide-react';
 
 export default function ResearchButton({ siteId, initialIndustry }: { siteId: string, initialIndustry?: string }) {
   const [loading, setLoading] = useState(false);
@@ -9,6 +9,7 @@ export default function ResearchButton({ siteId, initialIndustry }: { siteId: st
   const [showInput, setShowInput] = useState(false);
 
   const runResearch = async () => {
+    if (!industry.trim()) return alert("Please provide some industry context or description.");
     setLoading(true);
     try {
       const res = await fetch('/api/sites/keywords', {
@@ -18,8 +19,8 @@ export default function ResearchButton({ siteId, initialIndustry }: { siteId: st
       });
       const data = await res.json();
       if (data.success) {
-        alert("Site research complete! New target keywords discovered.");
-        window.location.reload();
+        alert("Site research complete! Market Intelligence updated.");
+        setShowInput(false);
       } else {
         alert(`Research failed: ${data.error || 'Unknown error'}`);
       }
@@ -28,41 +29,42 @@ export default function ResearchButton({ siteId, initialIndustry }: { siteId: st
       alert("Network error: Could not reach the research API.");
     } finally {
       setLoading(false);
-      setShowInput(false);
     }
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="relative">
       {showInput ? (
-        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
-          <input 
-            type="text"
+        <div className="absolute right-0 top-0 mt-10 w-80 bg-[#0d0d0d] border border-gray-800 rounded-xl p-4 shadow-2xl z-50 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Industry Deep-Dive</span>
+            <button onClick={() => setShowInput(false)} className="text-gray-500 hover:text-white">
+              <X size={14} />
+            </button>
+          </div>
+          
+          <textarea 
             value={industry}
             onChange={(e) => setIndustry(e.target.value)}
-            placeholder="Enter Industry (e.g. Real Estate)"
-            className="bg-black border border-gray-800 rounded px-2 py-1 text-[10px] text-white focus:border-terminal outline-none w-40"
+            placeholder="Describe your industry, product, or specific target niche in detail..."
+            className="w-full bg-black border border-gray-800 rounded-lg p-3 text-xs text-white focus:border-terminal outline-none h-32 mb-4 resize-none leading-relaxed placeholder:text-gray-700"
             autoFocus
           />
+          
           <button 
             onClick={runResearch}
             disabled={loading}
-            className="text-terminal hover:text-green-400 p-1"
+            className="w-full flex items-center justify-center gap-2 bg-terminal hover:bg-green-400 text-black text-[10px] font-black uppercase py-2.5 rounded-lg transition-all disabled:opacity-50"
           >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          </button>
-          <button 
-            onClick={() => setShowInput(false)}
-            className="text-gray-500 hover:text-gray-300 p-1"
-          >
-            <Search size={14} className="rotate-45" />
+            {loading ? <RefreshCw className="animate-spin" size={12} /> : <Search size={12} />}
+            Analyze & Fetch Keywords
           </button>
         </div>
       ) : (
         <button 
           onClick={() => setShowInput(true)}
           disabled={loading}
-          className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-terminal hover:text-green-400 transition-colors bg-terminal/10 px-2 py-1 rounded border border-terminal/20"
+          className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-terminal hover:text-green-400 transition-colors bg-terminal/10 px-3 py-1.5 rounded-lg border border-terminal/20"
         >
           {loading ? <RefreshCw className="animate-spin" size={12} /> : <Search size={12} />}
           Research Site

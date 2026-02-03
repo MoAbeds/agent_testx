@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        q: manualIndustry ? `best ${manualIndustry} websites` : `site:${site.domain}`,
+        q: manualIndustry ? manualIndustry.substring(0, 100) : `site:${site.domain}`,
         num: 10
       })
     });
@@ -44,16 +44,26 @@ export async function POST(request: NextRequest) {
       try {
         const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
         const analysisPrompt = `Elite SEO AI Prompt Architecture v2.0
-You are an elite keyword research analyst with expertise in search intent mapping, competitive analysis, and high-conversion query identification.
+You are an elite keyword research analyst.
 
 CONTEXT:
 - Target Website: ${site.domain}
-- Specified Industry/Niche: ${manualIndustry || 'Auto-detect'}
-- Search Context Data: ${snippets}
+- User Provided Description: 
+"""
+${manualIndustry || 'None provided'}
+"""
+- Current Search Context:
+${snippets}
 
-OBJECTIVE: Identify the 5 highest-value search queries that represent BOTTOM-OF-FUNNEL, high-intent prospects actively seeking solutions in this niche.
+OBJECTIVE: 
+1. Deeply understand the user's industry and specific product from their description.
+2. Identify the 5 highest-value search queries that represent BOTTOM-OF-FUNNEL, high-intent prospects actively seeking solutions in this exact niche.
 
-Return ONLY a JSON object: {"industry": "${manualIndustry || 'detected'}", "topic": "...", "queries": ["...", "...", "...", "...", "..."]}`;
+Return ONLY a JSON object: {
+  "industry": "Concise industry name",
+  "topic": "Concise 1-sentence niche description",
+  "queries": ["query 1", "query 2", "query 3", "query 4", "query 5"]
+}`;
 
         const result = await model.generateContent(analysisPrompt);
         const text = result.response.text();

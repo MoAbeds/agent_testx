@@ -1,13 +1,13 @@
 'use client';
 
 import { useAuth } from '@/lib/hooks';
-import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
-import CreateRuleForm from '@/components/CreateRuleForm';
+import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { useEffect, useState, Suspense } from 'react';
 import { Shield, Globe, Clock, CheckCircle, Loader2 } from 'lucide-react';
+import { db } from '@/lib/firebase';
+import CreateRuleForm from '@/components/CreateRuleForm';
 
-export default function RulesPage() {
+function RulesContent() {
   const { user } = useAuth();
   const [rules, setRules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -15,14 +15,26 @@ export default function RulesPage() {
   useEffect(() => {
     if (!user || !db) return;
 
+    // Use a simple query to avoid composite index requirements
     const q = query(
       collection(db, "rules"), 
-      where("siteId", "!=", ""), // Simplified, typically filter by user's sites
-      orderBy("createdAt", "desc")
+      where("siteId", "!=", "") 
     );
 
     const unsubscribe = onSnapshot(q, (snap) => {
-      setRules(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const allRules = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      
+      // Sort manually in memory to bypass Firebase index requirement
+      const sortedRules = allRules.sort((a: any, b: any) => {
+        const tA = a.createdAt?.seconds || 0;
+        const tB = b.createdAt?.seconds || 0;
+        return tB - tA;
+      });
+
+      setRules(sortedRules);
+      setLoading(false);
+    }, (error) => {
+      console.error("Rules fetch error:", error);
       setLoading(false);
     });
 
@@ -31,7 +43,7 @@ export default function RulesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center p-20">
         <Loader2 className="animate-spin text-terminal" size={48} />
       </div>
     );
@@ -40,7 +52,7 @@ export default function RulesPage() {
   return (
     <main className="p-4 md:p-8">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">Rules Engine</h1>
+        <h1 className="text-3xl font-bold text-white mb-2 font-serif">Rules Engine</h1>
         <p className="text-gray-400 text-sm md:text-base">Define manual overrides for specific paths.</p>
       </header>
 
@@ -51,14 +63,14 @@ export default function RulesPage() {
               <Shield className="text-gray-400" size={20} />
               Active Rules
             </h2>
-            <span className="text-xs text-gray-500 bg-gray-900 px-2 py-1 rounded border border-gray-800">
+            <span className="text-xs text-gray-500 bg-gray-900 px-2 py-1 rounded border border-gray-800 font-mono">
               {rules.length} Total
             </span>
           </div>
 
           <div className="space-y-4">
             {rules.length === 0 ? (
-              <div className="p-8 border border-dashed border-gray-800 rounded-xl text-center">
+              <div className="p-8 border border-dashed border-gray-800 rounded-xl text-center bg-gray-900/10">
                 <p className="text-gray-500 italic">No rules defined yet.</p>
               </div>
             ) : (
@@ -67,7 +79,7 @@ export default function RulesPage() {
                 try { payload = JSON.parse(rule.payload); } catch (e) {}
 
                 return (
-                  <div key={rule.id} className="bg-[#0a0a0a] border border-gray-800 rounded-xl p-5 hover:border-gray-700 transition-colors group">
+                  <div key={rule.id} className="bg-[#0a0a0a] border border-gray-800 rounded-xl p-5 hover:border-gray-700 transition-all group shadow-sm">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-gray-900 rounded-lg text-gray-400 group-hover:text-terminal transition-colors">
@@ -89,7 +101,7 @@ export default function RulesPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm bg-[#111] p-3 rounded-lg border border-gray-800/50">
                       <div>
                         <span className="text-gray-500 text-[10px] uppercase tracking-wider block mb-1">Title Override</span>
-                        <p className="text-gray-300 line-clamp-1">{payload.title || 'None'}</p>
+                        <p className="text-gray-300 line-clamp-1 font-medium">{payload.title || 'None'}</p>
                       </div>
                       <div>
                         <span className="text-gray-500 text-[10px] uppercase tracking-wider block mb-1">Meta Override</span>
@@ -97,14 +109,14 @@ export default function RulesPage() {
                       </div>
                     </div>
 
-                    <div className="mt-3 flex items-center gap-4 text-xs text-gray-600">
+                    <div className="mt-3 flex items-center gap-4 text-[10px] font-bold uppercase tracking-tighter text-gray-600">
                       <div className="flex items-center gap-1">
                         <Clock size={12} />
                         {rule.createdAt?.toDate?.() ? rule.createdAt.toDate().toLocaleDateString() : 'Just now'}
                       </div>
                       <div className="flex items-center gap-1">
                         <CheckCircle size={12} />
-                        {(rule.confidence * 100).toFixed(0)}% Confidence
+                        {(rule.confidence * 100).toFixed(0)}% AI Confidence
                       </div>
                     </div>
                   </div>
@@ -119,5 +131,17 @@ export default function RulesPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function RulesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="animate-spin text-terminal" size={48} />
+      </div>
+    }>
+      <RulesContent />
+    </Suspense>
   );
 }

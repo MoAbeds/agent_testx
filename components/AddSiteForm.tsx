@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Loader2, Check, Copy, X } from 'lucide-react';
+import { useAuth } from '@/lib/hooks';
 
 export default function AddSiteForm() {
   const router = useRouter();
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [domain, setDomain] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,6 +17,8 @@ export default function AddSiteForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return setError('You must be logged in');
+    
     setLoading(true);
     setError('');
 
@@ -22,7 +26,7 @@ export default function AddSiteForm() {
       const res = await fetch('/api/sites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ domain }),
+        body: JSON.stringify({ domain, userId: user.uid }),
       });
 
       const data = await res.json();

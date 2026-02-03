@@ -1,12 +1,13 @@
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import EmailProvider from "next-auth/providers/email";
+import { PrismaAdapter } from "@auth/prisma-adapter";
 import { PrismaClient } from "@prisma/client";
 
-// Use the global prisma instance if available to prevent connection exhaustion in dev
 const prisma = new PrismaClient();
 
 const handler = NextAuth({
-  // adapter: PrismaAdapter(prisma), // Disabled to prevent login loop
+  adapter: PrismaAdapter(prisma),
   session: {
     strategy: "jwt",
   },
@@ -23,53 +24,38 @@ const handler = NextAuth({
         },
       },
     }),
+    EmailProvider({
+      server: {
+        host: process.env.EMAIL_SERVER_HOST,
+        port: Number(process.env.EMAIL_SERVER_PORT),
+        auth: {
+          user: process.env.EMAIL_SERVER_USER,
+          pass: process.env.EMAIL_SERVER_PASSWORD,
+        },
+      },
+      from: process.env.EMAIL_FROM,
+    }),
   ],
   callbacks: {
     async jwt({ token, account, user }) {
-      // Initial sign in
       if (account && user) {
-        // Manually sync user to DB so we have a record
-        const dbUser = await prisma.user.upsert({
-          where: { email: user.email! },
-          update: { name: user.name, image: user.image },
-          create: { 
-            email: user.email!, 
-            name: user.name, 
-            image: user.image 
-          },
-        });
-
-        // Manually save the tokens to the Account table for GSC API usage
-        await prisma.account.upsert({
-          where: { 
-            provider_providerAccountId: {
-              provider: 'google',
-              providerAccountId: account.providerAccountId
+        // For Google users, we might still need to sync GSC tokens manually
+        if (account.provider === 'google') {
+          await prisma.account.update({
+            where: {
+              provider_providerAccountId: {
+                provider: 'google',
+                providerAccountId: account.providerAccountId
+              }
+            },
+            data: {
+              access_token: account.access_token,
+              refresh_token: account.refresh_token,
+              expires_at: account.expires_at,
             }
-          },
-          update: {
-            access_token: account.access_token,
-            refresh_token: account.refresh_token,
-            expires_at: account.expires_at,
-            scope: account.scope,
-            token_type: account.token_type,
-            id_token: account.id_token
-          },
-          create: {
-            userId: dbUser.id,
-            type: account.type,
-            provider: 'google',
-            providerAccountId: account.providerAccountId,
-            access_token: account.access_token,
-            refresh_token: account.refresh_token,
-            expires_at: account.expires_at,
-            scope: account.scope,
-            token_type: account.token_type,
-            id_token: account.id_token
-          }
-        });
-
-        token.id = dbUser.id;
+          });
+        }
+        token.id = user.id;
       }
       return token;
     },
@@ -82,7 +68,11 @@ const handler = NextAuth({
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
-  debug: true,
+  pages: {
+    signIn: '/login',
+    verifyRequest: '/login?verify=1',
+  },
+  debug: process.env.NODE_ENV === 'development',
 });
 
 export { handler as GET, handler as POST };

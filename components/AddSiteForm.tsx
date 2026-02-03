@@ -32,6 +32,7 @@ export default function AddSiteForm() {
       const data = await res.json();
 
       if (!res.ok) {
+        console.error('[AddSite] API Error:', data.error);
         throw new Error(data.error || 'Failed to create site');
       }
 

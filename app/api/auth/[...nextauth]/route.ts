@@ -42,25 +42,18 @@ const handler = NextAuth({
     }),
   ],
   callbacks: {
+    async signIn({ user, account, profile }) {
+      console.log(`[NextAuth] SignIn Attempt: ${user.email} via ${account?.provider}`);
+      return true;
+    },
     async jwt({ token, account, user }) {
-      if (account && user) {
-        // For Google users, we might still need to sync GSC tokens manually
-        if (account.provider === 'google') {
-          await prisma.account.update({
-            where: {
-              provider_providerAccountId: {
-                provider: 'google',
-                providerAccountId: account.providerAccountId
-              }
-            },
-            data: {
-              access_token: account.access_token,
-              refresh_token: account.refresh_token,
-              expires_at: account.expires_at,
-            }
-          });
-        }
+      if (user) {
         token.id = user.id;
+      }
+      if (account && account.provider === 'google') {
+        console.log(`[NextAuth] Google Tokens received for: ${token.email}`);
+        // We can handle extra token storage here later if needed, 
+        // but let's first get the login stable.
       }
       return token;
     },

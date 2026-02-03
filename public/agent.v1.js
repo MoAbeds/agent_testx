@@ -29,6 +29,13 @@
 
   function applyRules(rules) {
     const currentPath = window.location.pathname;
+    
+    // Ignore WordPress system paths
+    const excluded = ['/wp-admin', '/wp-content', '/wp-includes', '/wp-json', '/wp-login.php', '/xmlrpc.php'];
+    if (excluded.some(path => currentPath.toLowerCase().startsWith(path))) {
+      return;
+    }
+
     // Normalize path
     const cleanPath = currentPath.length > 1 ? currentPath.replace(/\/$/, '') : currentPath;
     

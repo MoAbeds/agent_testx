@@ -25,6 +25,23 @@ function extractMetaDescription(html: string): string | null {
   return null;
 }
 
+const EXCLUDED_PATHS = [
+  '/wp-admin',
+  '/wp-content',
+  '/wp-includes',
+  '/wp-json',
+  '/wp-login.php',
+  '/xmlrpc.php',
+  '/wp-signup.php',
+  '/wp-activate.php',
+  '/feed',
+  '/comments/feed'
+];
+
+function isExcluded(path: string): boolean {
+  return EXCLUDED_PATHS.some(excluded => path.toLowerCase().startsWith(excluded));
+}
+
 function extractLinks(html: string, domain: string): string[] {
   const links: string[] = [];
   const regex = /href=["'](https?:\/\/[^"']+|(?:\/|(?!\/))[^"'\s>]+)["']/gi;
@@ -33,15 +50,21 @@ function extractLinks(html: string, domain: string): string[] {
   while ((match = regex.exec(html)) !== null) {
     let href = match[1];
     if (href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('javascript:')) continue;
+    
+    let path = '';
     if (href.startsWith('/')) {
-      links.push(href);
+      path = href;
     } else if (href.includes(cleanDomain)) {
       try {
         const url = new URL(href);
         if (url.hostname.replace(/^www\./, '') === cleanDomain.replace(/^www\./, '')) {
-          links.push(url.pathname);
+          path = url.pathname;
         }
       } catch (e) {}
+    }
+
+    if (path && !isExcluded(path)) {
+      links.push(path);
     }
   }
   return Array.from(new Set(links));
@@ -94,7 +117,7 @@ export async function POST(request: NextRequest) {
 
     while (queue.length > 0 && visited.size < maxPages) {
       const path = queue.shift();
-      if (!path || visited.has(path)) continue;
+      if (!path || visited.has(path) || isExcluded(path)) continue;
       visited.add(path);
 
       const url = `${protocol}://${cleanDomain}${path}`;

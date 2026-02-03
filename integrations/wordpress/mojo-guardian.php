@@ -3,7 +3,7 @@
 Plugin Name: Mojo Guardian SEO Agent
 Plugin URI: https://agenttestx-production-19d6.up.railway.app
 Description: The official autonomous SEO infrastructure bridge for WordPress. Handles AI-powered redirects and metadata injections in real-time.
-Version: 1.1.0
+Version: 1.1.1
 Author: Mojo AI Team
 License: GPL2
 */
@@ -25,7 +25,6 @@ class Mojo_Guardian {
 
         // Core Logic
         if (!empty($this->api_key)) {
-            // Priority 1: Handle Redirects first
             add_action('init', array($this, 'handle_redirects'), 1);
             add_action('wp_head', array($this, 'inject_seo_meta'), 1);
             add_action('init', array($this, 'handle_internal_scrape'), 10);
@@ -33,10 +32,28 @@ class Mojo_Guardian {
         }
     }
 
+    private function is_system_path($path) {
+        $excluded = array(
+            '/wp-admin',
+            '/wp-content',
+            '/wp-includes',
+            '/wp-json',
+            '/wp-login.php',
+            '/xmlrpc.php',
+            '/feed'
+        );
+        foreach ($excluded as $prefix) {
+            if (strpos(strtolower($path), $prefix) === 0) return true;
+        }
+        return false;
+    }
+
     public function report_404_to_mojo() {
         if (is_404()) {
             $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-            $event_url = str_replace('/agent/manifest', '/agent/events/report', $this->manifest_url);
+            if ($this->is_system_path($path)) return;
+
+            $event_url = str_replace('/agent/manifest', '/agent/report', $this->manifest_url);
             
             wp_remote_post($event_url, array(
                 'headers' => array(
@@ -77,7 +94,7 @@ class Mojo_Guardian {
             foreach ($pages as $post) {
                 $url = get_permalink($post->ID);
                 $path = parse_url($url, PHP_URL_PATH) ?: '/';
-                if ($path === '/') continue;
+                if ($path === '/' || $this->is_system_path($path)) continue;
 
                 $results[] = array(
                     'path' => $path,
@@ -241,10 +258,12 @@ class Mojo_Guardian {
     public function handle_redirects() {
         if (is_admin()) return;
 
+        $current_path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+        if ($this->is_system_path($current_path)) return;
+
         $manifest = $this->get_manifest();
         if (!$manifest || !isset($manifest['rules'])) return;
 
-        $current_path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
         $clean_path = '/' . trim($current_path, '/');
         if ($clean_path === '//') $clean_path = '/';
         
@@ -264,10 +283,12 @@ class Mojo_Guardian {
     }
 
     public function inject_seo_meta() {
+        $current_path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+        if ($this->is_system_path($current_path)) return;
+
         $manifest = $this->get_manifest();
         if (!$manifest || !isset($manifest['rules'])) return;
 
-        $current_path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
         $clean_path = '/' . trim($current_path, '/');
         if ($clean_path === '//') $clean_path = '/';
 

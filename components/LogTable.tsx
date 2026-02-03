@@ -9,7 +9,8 @@ interface Log {
   path: string;
   details: string | null;
   occurredAt: string;
-  site: { domain: string } | null;
+  siteId?: string;
+  domain?: string;
 }
 
 interface Pagination {
@@ -124,10 +125,10 @@ export function LogTable({ initialLogs, initialPagination }: LogTableProps) {
                         <code className="font-mono text-xs text-terminal bg-terminal/5 px-2 py-0.5 rounded">
                           {log.path}
                         </code>
-                        {log.site && (
+                        {log.domain && (
                           <span className="text-[10px] text-gray-600 flex items-center gap-1">
                             <ExternalLink size={10} />
-                            {log.site.domain}
+                            {log.domain}
                           </span>
                         )}
                       </div>

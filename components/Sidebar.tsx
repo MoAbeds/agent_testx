@@ -16,8 +16,10 @@ import {
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/lib/hooks';
 
 export function Sidebar() {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
 
@@ -81,10 +83,12 @@ export function Sidebar() {
 
         <div className="p-4 border-t border-gray-800 bg-black/20">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-gray-700 flex-shrink-0" />
+            <div className="w-8 h-8 rounded-full bg-gray-700 flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white uppercase">
+              {user?.displayName?.substring(0, 2) || user?.email?.substring(0, 2) || 'AD'}
+            </div>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-white truncate">Admin User</p>
-              <p className="text-xs text-gray-500 truncate">Pro Plan</p>
+              <p className="text-sm font-medium text-white truncate">{user?.displayName || 'Active User'}</p>
+              <p className="text-xs text-gray-500 truncate">{user?.email || 'Pro Plan'}</p>
             </div>
           </div>
         </div>

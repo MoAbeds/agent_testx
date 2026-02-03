@@ -3,7 +3,7 @@
 Plugin Name: Mojo Guardian SEO Agent
 Plugin URI: https://agenttestx-production-19d6.up.railway.app
 Description: The official autonomous SEO infrastructure bridge for WordPress. Handles AI-powered redirects and metadata injections in real-time.
-Version: 1.0.5
+Version: 1.0.6
 Author: Mojo AI Team
 License: GPL2
 */
@@ -35,52 +35,65 @@ class Mojo_Guardian {
 
     public function handle_internal_scrape() {
         if (isset($_GET['mojo_action']) && $_GET['mojo_action'] === 'scrape') {
-            if ($_GET['key'] !== $this->api_key) {
+            if (empty($this->api_key) || $_GET['key'] !== $this->api_key) {
                 status_header(403);
-                wp_send_json_error('Unauthorized');
+                wp_send_json_error('Unauthorized or Missing Key');
             }
 
             // Get all public posts and pages
             $pages = get_posts(array(
                 'post_type' => array('post', 'page'), 
-                'posts_per_page' => 50, 
+                'posts_per_page' => 100, 
                 'post_status' => 'publish'
             ));
             
             $results = array();
 
+            // Always include the homepage manually
+            $results[] = array(
+                'path' => '/',
+                'title' => get_bloginfo('name'),
+                'metaDesc' => get_bloginfo('description'),
+                'status' => 200
+            );
+
             foreach ($pages as $post) {
                 $url = get_permalink($post->ID);
+                $path = parse_url($url, PHP_URL_PATH) ?: '/';
+                if ($path === '/') continue;
+
                 $results[] = array(
-                    'path' => parse_url($url, PHP_URL_PATH) ?: '/',
+                    'path' => $path,
                     'title' => get_the_title($post->ID),
                     'metaDesc' => get_post_meta($post->ID, '_aioseo_description', true) ?: get_post_meta($post->ID, '_yoast_wpseo_metadesc', true) ?: '',
                     'status' => 200
                 );
             }
 
-            // Push to SaaS
-            $ingest_url = str_replace('/agent/manifest', '/sites/ingest', $this->manifest_url);
+            // Push to SaaS Ingestion API
+            $base_url = preg_replace('/\/api\/agent\/.*$/', '', $this->manifest_url);
+            $ingest_url = rtrim($base_url, '/') . '/api/sites/ingest';
+            
             $response = wp_remote_post($ingest_url, array(
                 'headers' => array(
                     'Authorization' => 'Bearer ' . $this->api_key, 
-                    'Content-Type' => 'application/json'
+                    'Content-Type'  => 'application/json'
                 ),
                 'body' => json_encode(array(
                     'domain' => $_SERVER['HTTP_HOST'], 
                     'pages' => $results
                 )),
-                'timeout' => 15,
-                'blocking' => true // Block to ensure delivery
+                'timeout' => 30,
+                'blocking' => true 
             ));
 
             if (is_wp_error($response)) {
-                wp_send_json_error('Failed to connect to Mojo SaaS: ' . $response->get_error_message());
+                wp_send_json_error('Failed to push to Mojo SaaS: ' . $response->get_error_message());
             }
 
             wp_send_json_success(array(
                 'message' => 'Scrape complete and pushed to Mojo.',
-                'pages_sent' => count($results)
+                'count' => count($results)
             ));
         }
     }

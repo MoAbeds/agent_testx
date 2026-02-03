@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { upsertPage, logEvent } from '@/lib/db';
+import https from 'https';
 
 export const dynamic = 'force-dynamic';
 
-// Enable insecure TLS for the crawler to handle misconfigured SSL certs
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+// Create a persistent agent that ignores SSL errors
+const httpsAgent = new https.Agent({
+  rejectUnauthorized: false
+});
 
 // Simple HTML parsers
 function extractTitle(html: string): string | null {
@@ -65,10 +68,13 @@ export async function POST(request: NextRequest) {
     
     console.log(`[Crawler] Triggering internal bridge: ${triggerUrl}`);
     try {
+      // Using standard node fetch with agent for bridge trigger
       await fetch(triggerUrl, { 
         method: 'GET',
         headers: { 'User-Agent': 'MojoServer/1.0' },
-        next: { revalidate: 0 }
+        next: { revalidate: 0 },
+        // @ts-ignore - Handle TLS issues
+        agent: httpsAgent
       });
       await new Promise(r => setTimeout(r, 2000));
     } catch (triggerError) {
@@ -94,7 +100,9 @@ export async function POST(request: NextRequest) {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 MojoScanner/3.0',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
           },
-          next: { revalidate: 0 }
+          next: { revalidate: 0 },
+          // @ts-ignore - Bypass SSL errors
+          agent: httpsAgent
         });
         
         const status = response.status;

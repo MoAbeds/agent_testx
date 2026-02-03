@@ -11,6 +11,8 @@
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
     "@google/generative-ai": "^0.24.1",
+    "@paypal/paypal-js": "^9.2.0",
+    "@paypal/paypal-server-sdk": "^2.2.0",
     "@prisma/client": "^5.10.2",
     "axios": "^1.13.4",
     "clsx": "^2.1.0",

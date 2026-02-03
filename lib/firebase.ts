@@ -14,6 +14,10 @@ const firebaseConfig = {
 // Initialize Firebase only if config is present to prevent build-time crashes
 let app;
 if (typeof window !== "undefined" || process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+  // Debug check for production
+  if (typeof window !== "undefined" && !process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+    console.error("[Firebase] Missing environment variables. Auth will fail.");
+  }
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 }
 

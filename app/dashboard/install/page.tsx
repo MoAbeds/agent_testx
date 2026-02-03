@@ -1,6 +1,7 @@
 'use client';
 
-import { useAuth, db } from '@/lib/hooks';
+import { useAuth } from '@/lib/hooks';
+import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useEffect, useState, Suspense } from 'react';
 import { Shield, Code, Globe, Zap, CheckCircle, Copy, Loader2, ChevronDown } from 'lucide-react';

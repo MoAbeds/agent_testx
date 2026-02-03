@@ -3,7 +3,7 @@
 Plugin Name: Mojo Guardian SEO Agent
 Plugin URI: https://agenttestx-production-19d6.up.railway.app
 Description: The official autonomous SEO infrastructure bridge for WordPress. Handles AI-powered redirects and metadata injections in real-time.
-Version: 1.0.6
+Version: 1.0.7
 Author: Mojo AI Team
 License: GPL2
 */
@@ -40,7 +40,6 @@ class Mojo_Guardian {
                 wp_send_json_error('Unauthorized or Missing Key');
             }
 
-            // Get all public posts and pages
             $pages = get_posts(array(
                 'post_type' => array('post', 'page'), 
                 'posts_per_page' => 100, 
@@ -48,8 +47,6 @@ class Mojo_Guardian {
             ));
             
             $results = array();
-
-            // Always include the homepage manually
             $results[] = array(
                 'path' => '/',
                 'title' => get_bloginfo('name'),
@@ -70,7 +67,6 @@ class Mojo_Guardian {
                 );
             }
 
-            // Push to SaaS Ingestion API
             $base_url = preg_replace('/\/api\/agent\/.*$/', '', $this->manifest_url);
             $ingest_url = rtrim($base_url, '/') . '/api/sites/ingest';
             
@@ -117,23 +113,18 @@ class Mojo_Guardian {
 
     public function render_settings_page() {
         $status_message = '<span style="color:red">Disconnected</span>';
+        $active_rules = 0;
         
         if (!empty($this->api_key)) {
-            $response = wp_remote_get($this->manifest_url, array(
-                'headers' => array(
-                    'Authorization' => 'Bearer ' . $this->api_key,
-                ),
-                'timeout' => 5
-            ));
-
-            $code = wp_remote_retrieve_response_code($response);
+            // Force refresh if user is on settings page
+            delete_transient($this->manifest_cache_key);
+            $manifest = $this->get_manifest();
             
-            if ($code == 200) {
+            if ($manifest && isset($manifest['rules'])) {
                 $status_message = '<span style="color:green">Active & Protecting</span>';
-            } elseif ($code == 403 || $code == 401) {
-                $status_message = '<span style="color:orange">Invalid API Key</span>';
+                $active_rules = count($manifest['rules']);
             } else {
-                $status_message = '<span style="color:gray">Connecting... (Status: ' . $code . ')</span>';
+                $status_message = '<span style="color:orange">Invalid API Key or Connection Error</span>';
             }
         }
         ?>
@@ -155,8 +146,11 @@ class Mojo_Guardian {
                 <?php submit_button(); ?>
             </form>
             <hr>
-            <p><strong>Status:</strong> <?php echo $status_message; ?></p>
-            <p class="description">Your API key can be found in your <a href="https://agenttestx-production-19d6.up.railway.app/dashboard/install" target="_blank">Mojo Dashboard</a>.</p>
+            <div style="background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #ccd0d4;">
+                <p><strong>Status:</strong> <?php echo $status_message; ?></p>
+                <p><strong>Active Optimizations:</strong> <?php echo $active_rules; ?> rules loaded.</p>
+                <p class="description">Updates sync every 60 seconds. View and edit your rules in the <a href="https://agenttestx-production-19d6.up.railway.app/dashboard/rules" target="_blank">Mojo Dashboard</a>.</p>
+            </div>
         </div>
         <?php
     }
@@ -170,7 +164,7 @@ class Mojo_Guardian {
                     'Authorization' => 'Bearer ' . $this->api_key,
                     'Content-Type'  => 'application/json'
                 ),
-                'timeout' => 5
+                'timeout' => 10
             ));
 
             if (is_wp_error($response)) return null;
@@ -179,7 +173,8 @@ class Mojo_Guardian {
             $manifest = json_decode($body, true);
 
             if (isset($manifest['rules'])) {
-                set_transient($this->manifest_cache_key, $manifest, 15 * MINUTE_IN_SECONDS);
+                // Cache for 1 minute for faster testing/editing
+                set_transient($this->manifest_cache_key, $manifest, 60);
             }
         }
 
@@ -191,9 +186,12 @@ class Mojo_Guardian {
         if (!$manifest || !isset($manifest['rules'])) return;
 
         $current_path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+        // Normalize: ensure leading slash and no trailing slash for comparison
+        $clean_path = '/' . trim($current_path, '/');
+        if ($clean_path === '//') $clean_path = '/';
         
-        if (isset($manifest['rules'][$current_path])) {
-            $rule = $manifest['rules'][$current_path];
+        if (isset($manifest['rules'][$clean_path])) {
+            $rule = $manifest['rules'][$clean_path];
             if (isset($rule['redirectTo'])) {
                 wp_redirect($rule['redirectTo'], 301);
                 exit;
@@ -206,23 +204,31 @@ class Mojo_Guardian {
         if (!$manifest || !isset($manifest['rules'])) return;
 
         $current_path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+        $clean_path = '/' . trim($current_path, '/');
+        if ($clean_path === '//') $clean_path = '/';
 
-        if (isset($manifest['rules'][$current_path])) {
-            $rule = $manifest['rules'][$current_path];
+        if (isset($manifest['rules'][$clean_path])) {
+            $rule = $manifest['rules'][$clean_path];
+
+            echo "\n<!-- Mojo Guardian Active: Rule ID " . esc_html($rule['ruleId']) . " -->\n";
 
             // Title Override
-            if (isset($rule['title'])) {
+            if (isset($rule['title']) && !empty($rule['title'])) {
                 add_filter('pre_get_document_title', function() use ($rule) {
                     return $rule['title'];
                 }, 100);
-                echo '<!-- Mojo Injected Title -->' . "\n";
+                // Also support older themes
+                add_filter('wp_title', function() use ($rule) {
+                    return $rule['title'];
+                }, 100);
             }
 
             // Meta Description Override
-            $desc = isset($rule['metaDescription']) ? $rule['metaDescription'] : (isset($rule['metaDesc']) ? $rule['metaDesc'] : '');
+            $desc = isset($rule['metaDesc']) ? $rule['metaDesc'] : (isset($rule['metaDescription']) ? $rule['metaDescription'] : '');
             if (!empty($desc)) {
+                // Remove existing meta description if possible
+                remove_action('wp_head', 'rel_canonical'); // handled separately if needed
                 echo '<meta name="description" content="' . esc_attr($desc) . '" />' . "\n";
-                echo '<!-- Mojo Injected Meta Description -->' . "\n";
             }
 
             // Schema Injection

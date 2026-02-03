@@ -63,7 +63,7 @@ export default function RulesPage() {
               </div>
             ) : (
               rules.map((rule) => {
-                let payload = { title: '', metaDescription: '' };
+                let payload: any = { title: '', metaDescription: '' };
                 try { payload = JSON.parse(rule.payload); } catch (e) {}
 
                 return (

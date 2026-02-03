@@ -1,21 +1,50 @@
 'use client';
 
+import { auth } from "@/lib/firebase";
+import { 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  createUserWithEmailAndPassword,
+  updateProfile
+} from "firebase/auth";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from 'next/link';
-import { signIn } from 'next-auth/react';
-import { Terminal, Mail, Loader2, Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { Terminal, Mail, Loader2, Lock, User, Sparkles } from 'lucide-react';
 
 export default function SignupPage() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  const handleGoogleSignIn = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      router.push('/dashboard');
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message);
+    }
+  };
 
   const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password.length < 6) return alert("Password must be at least 6 characters.");
+    
     setLoading(true);
     try {
-      await signIn('email', { email, callbackUrl: '/dashboard' });
-    } catch (err) {
-      console.error(err);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      // Update display name
+      if (name) {
+        await updateProfile(userCredential.user, { displayName: name });
+      }
+      router.push('/dashboard');
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message);
     } finally {
       setLoading(false);
     }
@@ -56,6 +85,20 @@ export default function SignupPage() {
 
           <form onSubmit={handleEmailSignup} className="space-y-4 mb-6">
             <div>
+              <label className="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-1.5 block">Full Name</label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+                <input 
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="John Doe"
+                  className="w-full pl-10 pr-4 py-3 bg-black border border-gray-800 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-terminal focus:ring-1 focus:ring-terminal/20 transition-all"
+                />
+              </div>
+            </div>
+
+            <div>
               <label className="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-1.5 block">Work Email</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
@@ -69,6 +112,22 @@ export default function SignupPage() {
                 />
               </div>
             </div>
+
+            <div>
+              <label className="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-1.5 block">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+                <input 
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="At least 6 characters"
+                  required
+                  className="w-full pl-10 pr-4 py-3 bg-black border border-gray-800 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-terminal focus:ring-1 focus:ring-terminal/20 transition-all"
+                />
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={loading}
@@ -88,7 +147,7 @@ export default function SignupPage() {
           </div>
 
           <button
-            onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
+            onClick={handleGoogleSignIn}
             className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white text-gray-900 font-medium rounded-lg hover:bg-gray-100 transition-colors"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">

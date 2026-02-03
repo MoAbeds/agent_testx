@@ -17,15 +17,23 @@ export async function POST(request: NextRequest) {
     const siteSnap = await getDoc(siteRef);
     if (!siteSnap.exists()) return NextResponse.json({ error: 'Site not found' }, { status: 404 });
 
-    const deadPagesQ = query(collection(db, "pages"), where("siteId", "==", siteId), where("status", "==", 404));
-    const deadPagesSnap = await getDocs(deadPagesQ);
-    const deadPages = deadPagesSnap.docs.map(d => d.data());
+    // Find 404s using a flexible check
+    const pagesQ = query(collection(db, "pages"), where("siteId", "==", siteId));
+    const pagesSnap = await getDocs(pagesQ);
+    const allPages = pagesSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+    
+    const deadPages = allPages.filter(p => p.status == 404 || p.status == "404");
+    const targetPaths = allPages.filter(p => p.status == 200 || p.status == "200").map(p => p.path);
 
-    if (deadPages.length === 0) return NextResponse.json({ success: true, message: 'No 404s found' });
+    console.log(`[Fix-404] Dead: ${deadPages.length}, Targets: ${targetPaths.length}`);
 
-    const validPagesQ = query(collection(db, "pages"), where("siteId", "==", siteId), where("status", "==", 200));
-    const validPagesSnap = await getDocs(validPagesQ);
-    const targetPaths = validPagesSnap.docs.map(d => d.data().path);
+    if (deadPages.length === 0) {
+      return NextResponse.json({ success: true, message: 'No 404 pages found in the system. Run a scan or visit the broken links on your site first.' });
+    }
+
+    if (targetPaths.length === 0) {
+      return NextResponse.json({ error: 'No valid target pages found. Crawl your working pages first.' }, { status: 400 });
+    }
 
     const googleKey = process.env.GOOGLE_AI_KEY;
     let mappings = [];
@@ -43,7 +51,9 @@ Return ONLY a JSON array of objects: [{"from": "/path", "to": "/target", "confid
         const result = await model.generateContent(prompt);
         const text = result.response.text().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
         mappings = JSON.parse(text);
-      } catch (e) {}
+      } catch (e) {
+        console.error("[Fix-404] AI failed:", e.message);
+      }
     }
 
     if (mappings.length === 0) {
@@ -67,6 +77,7 @@ Return ONLY a JSON array of objects: [{"from": "/path", "to": "/target", "confid
 
     return NextResponse.json({ success: true, fixesApplied: mappings.length });
   } catch (error) {
+    console.error('Fix-404 error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

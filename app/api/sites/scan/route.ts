@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
         
         if (status === 404) {
           await logEvent(site.id, '404_DETECTED', path, { message: `Broken link found during scan` });
+          await upsertPage(site.id, path, { status: 404 });
         }
 
         if (status === 200 && typeof response.data === 'string') {

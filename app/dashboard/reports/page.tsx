@@ -1,8 +1,7 @@
 'use client';
 
-// Build trigger for Railway cache
 import { useEffect, useState, useRef } from 'react';
-import { FileBarChart, AlertTriangle, CheckCircle, FileText, Download, RefreshCw, TrendingUp, Target, Loader2, Shield } from 'lucide-react';
+import { FileBarChart, AlertTriangle, CheckCircle, FileText, Download, RefreshCw, TrendingUp, Target, Loader2, ShieldCheck } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -281,7 +280,7 @@ export default function ReportsPage() {
                               key={idx}
                               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-tight bg-red-500/5 text-red-400 border border-red-500/10"
                             >
-                              <Shield size={10} />
+                              <ShieldCheck size={10} />
                               {issue}
                             </span>
                           ))}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth, db } from '@/lib/hooks';
-import { collection, query, where, getDocs, limit, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, limit, getDocs, onSnapshot } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { LogTable } from '@/components/LogTable';
 import { Bot, Activity, Loader2 } from 'lucide-react';
@@ -15,22 +15,26 @@ export default function LogsPage() {
   useEffect(() => {
     if (!user || !db) return;
 
-    // Listen to all events for this user's sites
-    // For simplicity in NoSQL, we'll fetch all and filter or just show recent for all sites
-    const q = query(
-      collection(db, "events"), 
-      orderBy("occurredAt", "desc"),
-      limit(50)
-    );
+    // Use a robust listener that doesn't depend on composite indexes
+    const q = query(collection(db, "events"), limit(100));
 
     const unsubscribe = onSnapshot(q, (snap) => {
-      const docs = snap.docs.map(d => ({
+      const allEvents = snap.docs.map(d => ({
         id: d.id,
         ...d.data(),
         occurredAt: (d.data() as any).occurredAt?.toDate?.()?.toISOString() || new Date().toISOString()
       }));
-      setLogs(docs);
-      setTotal(snap.size);
+
+      // In-memory sort to bypass index requirement
+      const sortedLogs = allEvents.sort((a: any, b: any) => 
+        new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()
+      );
+
+      setLogs(sortedLogs.slice(0, 50));
+      setTotal(sortedLogs.length);
+      setLoading(false);
+    }, (error) => {
+      console.error("Logs fetch error:", error);
       setLoading(false);
     });
 
@@ -44,13 +48,6 @@ export default function LogsPage() {
       </div>
     );
   }
-
-  const pagination = {
-    page: 1,
-    limit: 50,
-    total,
-    totalPages: 1,
-  };
 
   return (
     <main className="p-4 md:p-8">
@@ -66,7 +63,6 @@ export default function LogsPage() {
         </div>
       </header>
 
-      {/* Stats bar */}
       <div className="mb-6 flex items-center gap-6">
         <div className="flex items-center gap-2 text-sm">
           <Activity size={16} className="text-gray-500" />
@@ -76,7 +72,15 @@ export default function LogsPage() {
         </div>
       </div>
 
-      <LogTable initialLogs={logs} initialPagination={pagination} />
+      <LogTable 
+        initialLogs={logs} 
+        initialPagination={{
+          page: 1,
+          limit: 50,
+          total,
+          totalPages: 1,
+        }} 
+      />
     </main>
   );
 }

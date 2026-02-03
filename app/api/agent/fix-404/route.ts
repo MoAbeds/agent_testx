@@ -46,15 +46,42 @@ export async function POST(request: NextRequest) {
     if (googleKey) {
       try {
         const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
-        const prompt = `Act as an SEO Expert. 
-I have the following broken (404) URLs on my website:
-${deadPages.map(p => p.path).join('\n')}
+    const prompt = `Elite SEO AI Prompt Architecture v2.0
+You are an expert SEO technical consultant specializing in site architecture and intelligent redirect strategies that preserve link equity and user experience.
 
-And the following valid (200 OK) target URLs:
-${targetPaths.join('\n')}
+CONTEXT:
+Broken URLs (404 errors): [${deadPages.map(p => p.path).join(', ')}]
+Valid Target URLs (200 OK): [${targetPaths.join(', ')}]
 
-For each broken URL, find the most relevant valid target URL to redirect to.
-Return ONLY a JSON array of objects: [{"from": "/broken-path", "to": "/valid-path", "reasoning": "..."}]`;
+OBJECTIVE: Map each broken URL to the most semantically relevant valid URL using advanced matching algorithms that consider:
+1. URL path similarity (substring matching, hierarchical structure)
+2. Topical relevance (content theme alignment)
+3. User intent preservation (what they were looking for)
+4. Link equity value (prefer high-authority targets)
+
+MATCHING CRITERIA (Priority Order):
+1. Exact path parent match (e.g., /blog/old-post → /blog/new-post)
+2. Keyword overlap in URL slugs (extract nouns/verbs, calculate similarity)
+3. Semantic category alignment (product pages → product category, etc.)
+4. Fallback to homepage ONLY if no reasonable match exists
+
+RULES:
+- Never redirect to irrelevant pages (damages UX and SEO)
+- Prefer deeper content pages over category pages
+- If multiple matches exist, choose the most specific/relevant
+- Flag low-confidence matches (similarity score < 60%)
+
+OUTPUT FORMAT (JSON array only):
+[
+  {
+    "from": "/broken-path",
+    "to": "/best-match-path",
+    "confidence": "high|medium|low",
+    "reasoning": "Brief explanation of why this is the best match (path similarity, topical relevance, etc.)",
+    "matchScore": 85
+  }
+]
+Sort results by confidence (high → low).`;
 
         const result = await model.generateContent(prompt);
         const responseText = result.response.text().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();

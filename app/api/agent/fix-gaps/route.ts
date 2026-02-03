@@ -42,19 +42,42 @@ export async function POST(request: NextRequest) {
 
       if (!page) continue;
 
-      const prompt = `Act as an Elite SEO Strategist.
-Website Domain: ${site.domain}
-Page Path: ${page.path}
-Current Title: ${page.title || 'Missing'}
-Current Meta: ${page.metaDesc || 'Missing'}
-Target Keywords for the site: [${siteKeywords.join(', ')}]
+      const prompt = `Elite SEO AI Prompt Architecture v2.0
+You are an elite SEO strategist with 15+ years of experience optimizing metadata for Fortune 500 companies and high-converting SaaS products.
 
-Goal: Generate high-performance SEO Title and Meta Description.
-- Title < 60 chars, Meta < 160 chars.
-- Incorporate target keywords naturally.
-- Use click-worthy power words.
+CONTEXT:
+- Website Domain: ${site.domain}
+- Page Path: ${page.path}
+- Current Title: ${page.title || 'Missing'}
+- Current Meta Description: ${page.metaDesc || 'Missing'}
+- Target Keywords: [${siteKeywords.join(', ')}]
 
-Return ONLY a JSON object: {"title": "...", "metaDesc": "...", "reasoning": "..."}`;
+OBJECTIVE: Generate high-performance, click-optimized SEO metadata that maximizes CTR while maintaining keyword relevance and search intent alignment.
+
+STRICT REQUIREMENTS:
+1. Title tag: 50-60 characters (hard limit: 60)
+2. Meta description: 150-160 characters (hard limit: 160)
+3. Primary keyword MUST appear in first 8 words of title
+4. Include 1-2 power words from this list: Ultimate, Essential, Proven, Expert, Complete, Advanced, Professional, Premium, Verified, Exclusive
+5. Ensure emotional trigger + value proposition in meta description
+6. Avoid keyword stuffing - maintain natural readability
+7. Match search intent (informational/commercial/transactional)
+8. NO special characters that break HTML (quotes, brackets, etc.)
+
+ANALYSIS FRAMEWORK:
+- Identify primary search intent from keywords
+- Analyze competitor patterns in SERP
+- Determine user pain point or desire
+- Craft compelling value proposition
+
+OUTPUT FORMAT (JSON only, no markdown, no explanation):
+{
+  "title": "Optimized title here",
+  "metaDesc": "Optimized meta description here",
+  "reasoning": "Brief explanation of keyword placement strategy and CTR optimization approach",
+  "primaryKeyword": "main keyword targeted",
+  "intentType": "informational|commercial|transactional"
+}`;
 
       try {
         console.log(`[Bulk-SEO] Requesting Gemini for ${page.path}...`);

@@ -50,30 +50,27 @@ export async function POST(request: NextRequest) {
       try {
         const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
     const analysisPrompt = manualIndustry 
-      ? `Act as an Elite SEO Strategist.
-Target Website: ${site.domain}
-Specified Industry: ${manualIndustry}
+      ? `Elite SEO AI Prompt Architecture v2.0
+You are an elite keyword research analyst with expertise in search intent mapping, competitive analysis, and high-conversion query identification.
 
-Context from Search:
-${snippets}
+CONTEXT:
+- Target Website: ${site.domain}
+- Specified Industry/Niche: ${manualIndustry}
+- Search Context Data: ${snippets}
 
-Instructions:
-1. Ignore general SEO keywords (like "SEO optimization", "ranking", etc.).
-2. Identify 5 high-intent, high-volume search queries SPECIFIC to "${manualIndustry}".
-3. These should be what CUSTOMERS type to find a service in this niche.
+OBJECTIVE: Identify the 5 highest-value search queries that represent BOTTOM-OF-FUNNEL, high-intent prospects actively seeking solutions in this niche.
 
 Return ONLY a JSON object: {"industry": "${manualIndustry}", "topic": "...", "queries": ["...", "...", "...", "...", "..."]}`
-      : `Analyze this website data:
-Domain: ${site.domain}
-Search Results:
-${snippets}
+      : `Elite SEO AI Prompt Architecture v2.0
+You are an elite keyword research analyst with expertise in search intent mapping, competitive analysis, and high-conversion query identification.
 
-Identify:
-1. The Industry (e.g., "SaaS", "E-commerce", "Blog")
-2. The Core Topic (e.g., "SEO Automation", "Fitness Equipment")
-3. 5 High-volume search queries that a user would type to find this site.
+CONTEXT:
+- Target Website: ${site.domain}
+- Search Context Data: ${snippets}
 
-Return ONLY a JSON object: {"industry": "...", "topic": "...", "queries": ["...", "..."]}`;
+OBJECTIVE: Identify the 5 highest-value search queries that represent BOTTOM-OF-FUNNEL, high-intent prospects actively seeking solutions in this niche.
+
+Return ONLY a JSON object: {"industry": "...", "topic": "...", "queries": ["...", "...", "...", "...", "..."]}`;
 
         const analysisResult = await model.generateContent(analysisPrompt);
         const text = analysisResult.response.text();

@@ -24,17 +24,63 @@ export async function POST(request: NextRequest) {
 
     const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
     
-    const prompt = `Act as an Elite SEO Content Optimizer.
-Analyze this HTML and improve its on-page SEO:
-1. Suggest a better H1 if the current one is weak.
-2. Provide 3-5 bullet points of content improvements (injecting keywords, improving readability).
-3. Identify if any "Power Words" are missing in the headers.
+    const prompt = `Elite SEO AI Prompt Architecture v2.0
+You are an elite on-page SEO content strategist with expertise in semantic optimization, readability engineering, and conversion-focused copywriting.
 
-Return ONLY a JSON object: {"h1": "...", "contentSuggestions": ["...", "..."], "reasoning": "..."}`;
+CONTEXT:
+Raw HTML Content: [HTML string below]
+Target Keywords: [${page.site.targetKeywords || 'N/A'}]
+Current H1: [${page.h1 || 'N/A'}]
+Page Type: [${page.path === '/' ? 'homepage' : 'internal'}]
+
+OBJECTIVE: Analyze the HTML content structure and provide actionable, specific recommendations to improve on-page SEO signals, semantic relevance, and user engagement.
+
+ANALYSIS FRAMEWORK:
+1. H1 Optimization:
+- Is it unique, compelling, and keyword-optimized?
+- Does it match search intent?
+- Does it use power words for engagement?
+2. Content Structure:
+- Are headings (H2-H4) properly hierarchical?
+- Is keyword distribution natural (avoid stuffing)?
+- Are there semantic keyword variations (LSI)?
+- Is readability appropriate for target audience?
+3. Engagement Signals:
+- Are there clear CTAs?
+- Is content scannable (short paragraphs, bullets)?
+- Are power words used in key positions?
+4. Technical SEO:
+- Is there keyword cannibalization risk?
+- Are internal linking opportunities identified?
+
+POWER WORD LIBRARY (inject where natural):
+Proven, Essential, Ultimate, Expert, Premium, Exclusive, Guaranteed, Certified, Advanced, Complete, Professional, Verified, Breakthrough, Revolutionary, Time-Tested
+
+OUTPUT FORMAT (JSON only):
+{
+  "h1": {
+    "current": "Existing H1 text or null",
+    "optimized": "Improved H1 with keyword + power word",
+    "improvement": "Explanation of what changed and why"
+  },
+  "contentSuggestions": [
+    "Specific actionable improvement 1",
+    "Specific actionable improvement 2",
+    "Specific actionable improvement 3",
+    "Specific actionable improvement 4",
+    "Specific actionable improvement 5"
+  ],
+  "missingElements": [
+    "Critical element missing"
+  ],
+  "readabilityScore": "easy|moderate|complex",
+  "keywordDensity": "optimal|too low|too high",
+  "reasoning": "Overall strategic rationale for these recommendations"
+}`;
 
     const result = await model.generateContent([
       { text: prompt },
-      { text: `HTML Content:\n${html.substring(0, 15000)}` } // Cap for token limits
+      { text: `Raw HTML Content:\n${html.substring(0, 15000)}` }
     ]);
 
     const optimized = JSON.parse(result.response.text().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim());

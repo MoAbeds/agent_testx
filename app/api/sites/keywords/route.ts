@@ -60,7 +60,39 @@ CONTEXT:
 
 OBJECTIVE: Identify the 5 highest-value search queries that represent BOTTOM-OF-FUNNEL, high-intent prospects actively seeking solutions in this niche.
 
-Return ONLY a JSON object: {"industry": "${manualIndustry}", "topic": "...", "queries": ["...", "...", "...", "...", "..."]}`
+EXCLUSION CRITERIA (Ignore these):
+- Generic SEO terms: "SEO optimization", "improve ranking", "website traffic"
+- Brand names (unless highly relevant to service)
+- Question queries (focus on solution-seeking, not research)
+- Single-word broad terms
+
+INCLUSION CRITERIA (Prioritize these):
+- Service + location combinations ("plumber in [city]")
+- Problem + solution phrases ("fix leaky roof", "emergency dental care")
+- Comparison queries ("best CRM for startups")
+- Buying signals ("hire", "cost", "near me", "reviews", "vs")
+
+ANALYSIS FRAMEWORK:
+1. Extract commercial intent signals from search snippets
+2. Identify pain points + urgency indicators
+3. Look for geo-modifiers and service-specific terms
+4. Prioritize queries with ads in SERP (= commercial value)
+5. Avoid informational/educational queries
+
+OUTPUT FORMAT (JSON only):
+{
+  "industry": "${manualIndustry}",
+  "topic": "Concise 1-sentence description of the core market opportunity",
+  "queries": [
+    "High-intent query 1",
+    "High-intent query 2",
+    "High-intent query 3",
+    "High-intent query 4",
+    "High-intent query 5"
+  ],
+  "intentAnalysis": "Brief explanation of why these queries represent bottom-of-funnel commercial intent",
+  "estimatedMonthlySearchVolume": "low|medium|high"
+}`
       : `Elite SEO AI Prompt Architecture v2.0
 You are an elite keyword research analyst with expertise in search intent mapping, competitive analysis, and high-conversion query identification.
 
@@ -70,7 +102,39 @@ CONTEXT:
 
 OBJECTIVE: Identify the 5 highest-value search queries that represent BOTTOM-OF-FUNNEL, high-intent prospects actively seeking solutions in this niche.
 
-Return ONLY a JSON object: {"industry": "...", "topic": "...", "queries": ["...", "...", "...", "...", "..."]}`;
+EXCLUSION CRITERIA (Ignore these):
+- Generic SEO terms: "SEO optimization", "improve ranking", "website traffic"
+- Brand names (unless highly relevant to service)
+- Question queries (focus on solution-seeking, not research)
+- Single-word broad terms
+
+INCLUSION CRITERIA (Prioritize these):
+- Service + location combinations ("plumber in [city]")
+- Problem + solution phrases ("fix leaky roof", "emergency dental care")
+- Comparison queries ("best CRM for startups")
+- Buying signals ("hire", "cost", "near me", "reviews", "vs")
+
+ANALYSIS FRAMEWORK:
+1. Extract commercial intent signals from search snippets
+2. Identify pain points + urgency indicators
+3. Look for geo-modifiers and service-specific terms
+4. Prioritize queries with ads in SERP (= commercial value)
+5. Avoid informational/educational queries
+
+OUTPUT FORMAT (JSON only):
+{
+  "industry": "Identified Industry",
+  "topic": "Concise 1-sentence description of the core market opportunity",
+  "queries": [
+    "High-intent query 1",
+    "High-intent query 2",
+    "High-intent query 3",
+    "High-intent query 4",
+    "High-intent query 5"
+  ],
+  "intentAnalysis": "Brief explanation of why these queries represent bottom-of-funnel commercial intent",
+  "estimatedMonthlySearchVolume": "low|medium|high"
+}`;
 
         const analysisResult = await model.generateContent(analysisPrompt);
         const text = analysisResult.response.text();

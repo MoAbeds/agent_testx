@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from "@/lib/firebase";
+import { collection, getDocs, query, limit } from "firebase/firestore";
 
 export const dynamic = 'force-dynamic';
 
@@ -12,78 +13,71 @@ interface Opportunity {
 
 export async function GET() {
   try {
-    // Fetch all pages with site info
-    const pages = await prisma.page.findMany({
-      include: {
-        site: {
-          select: { domain: true }
-        }
-      }
+    if (!db) return NextResponse.json({ error: 'Firestore not initialized' }, { status: 500 });
+
+    // 1. Fetch all sites
+    const sitesSnap = await getDocs(collection(db, "sites"));
+    const sitesMap: Record<string, string> = {};
+    sitesSnap.forEach(doc => {
+      sitesMap[doc.id] = doc.data().domain;
     });
 
-    // Fetch optimization rules
-    const rules = await prisma.optimizationRule.findMany();
+    // 2. Fetch all pages
+    const pagesSnap = await getDocs(collection(db, "pages"));
+    const pages = pagesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
 
-    // Calculate stats
-    const totalPages = pages.length;
-    const activeRulesCount = rules.filter(r => r.isActive).length;
-    
-    // Calculate health score and identify issues
+    // 3. Fetch all rules
+    const rulesSnap = await getDocs(collection(db, "rules"));
+    const activeRulesCount = rulesSnap.docs.filter(doc => doc.data().isActive).length;
+
+    // 4. Calculate stats and health score
     let healthScore = 100;
     let issuesFound = 0;
     const opportunities: Opportunity[] = [];
 
-    const LOW_WORD_COUNT_THRESHOLD = 100;
-
     for (const page of pages) {
       const pageIssues: string[] = [];
+      const domain = sitesMap[page.siteId] || 'unknown';
       
-      // Check for missing title
       if (!page.title || page.title.trim() === '') {
         pageIssues.push('Missing title tag');
-        healthScore -= 10;
+        healthScore -= 5;
         issuesFound++;
       }
       
-      // Check for missing meta description
       if (!page.metaDesc || page.metaDesc.trim() === '') {
         pageIssues.push('Missing meta description');
+        healthScore -= 5;
+        issuesFound++;
+      }
+
+      if (page.status === 404) {
+        pageIssues.push('404 Broken Link');
         healthScore -= 10;
         issuesFound++;
       }
 
-      // Check for low word count in title (proxy for thin content)
-      if (page.title && page.title.split(' ').length < 3) {
-        pageIssues.push('Title too short');
-      }
-
-      // Check for short meta description
-      if (page.metaDesc && page.metaDesc.length < 50) {
-        pageIssues.push('Meta description too short');
-      }
-
-      // If page has issues, add to opportunities
       if (pageIssues.length > 0) {
         opportunities.push({
           id: page.id,
           path: page.path,
-          domain: page.site.domain,
+          domain: domain,
           issues: pageIssues
         });
       }
     }
 
-    // Clamp health score to 0-100
     healthScore = Math.max(0, Math.min(100, healthScore));
 
     return NextResponse.json({
       healthScore,
-      pagesScanned: totalPages,
+      pagesScanned: pages.length,
       issuesFound,
       optimizedCount: activeRulesCount,
-      opportunities: opportunities.slice(0, 10), // Limit to top 10
+      opportunities: opportunities.slice(0, 10),
       generatedAt: new Date().toISOString()
     });
+
   } catch (error) {
     console.error('Error generating report summary:', error);
     return NextResponse.json(

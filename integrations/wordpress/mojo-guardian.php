@@ -3,7 +3,7 @@
 Plugin Name: Mojo Guardian SEO Agent
 Plugin URI: https://agenttestx-production-19d6.up.railway.app
 Description: The official autonomous SEO infrastructure bridge for WordPress. Handles AI-powered redirects and metadata injections in real-time.
-Version: 1.0.8
+Version: 1.0.9
 Author: Mojo AI Team
 License: GPL2
 */
@@ -25,13 +25,10 @@ class Mojo_Guardian {
 
         // Core Logic
         if (!empty($this->api_key)) {
-            add_action('template_redirect', array($this, 'handle_redirects'), 1);
+            // High priority hooks
+            add_action('init', array($this, 'handle_redirects'), 1);
             add_action('wp_head', array($this, 'inject_seo_meta'), 1);
-            
-            // Internal Scraper Bridge (Triggered by SaaS Server)
-            add_action('init', array($this, 'handle_internal_scrape'));
-
-            // Passive 404 Detection (Reports broken links to SaaS as users hit them)
+            add_action('init', array($this, 'handle_internal_scrape'), 10);
             add_action('wp', array($this, 'report_404_to_mojo'));
         }
     }
@@ -39,7 +36,7 @@ class Mojo_Guardian {
     public function report_404_to_mojo() {
         if (is_404()) {
             $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-            $event_url = str_replace('/agent/manifest', '/agent/events/report', $this->manifest_url);
+            $event_url = str_replace('/agent/manifest', '/agent/report', $this->manifest_url);
             
             wp_remote_post($event_url, array(
                 'headers' => array(
@@ -139,7 +136,6 @@ class Mojo_Guardian {
         $active_rules = 0;
         
         if (!empty($this->api_key)) {
-            // Force refresh if user is on settings page
             delete_transient($this->manifest_cache_key);
             $manifest = $this->get_manifest();
             
@@ -196,7 +192,6 @@ class Mojo_Guardian {
             $manifest = json_decode($body, true);
 
             if (isset($manifest['rules'])) {
-                // Cache for 1 minute for faster testing/editing
                 set_transient($this->manifest_cache_key, $manifest, 60);
             }
         }
@@ -205,18 +200,26 @@ class Mojo_Guardian {
     }
 
     public function handle_redirects() {
+        if (is_admin()) return;
+
         $manifest = $this->get_manifest();
         if (!$manifest || !isset($manifest['rules'])) return;
 
         $current_path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-        // Normalize: ensure leading slash and no trailing slash for comparison
         $clean_path = '/' . trim($current_path, '/');
         if ($clean_path === '//') $clean_path = '/';
         
         if (isset($manifest['rules'][$clean_path])) {
             $rule = $manifest['rules'][$clean_path];
             if (isset($rule['redirectTo'])) {
-                wp_redirect($rule['redirectTo'], 301);
+                $target = $rule['redirectTo'];
+                // If it's a relative path, make it absolute
+                if (strpos($target, '/') === 0) {
+                    $target = home_url($target);
+                }
+                
+                header("X-Mojo-Guardian: Redirect-Active");
+                wp_redirect($target, 301, 'Mojo Guardian');
                 exit;
             }
         }
@@ -235,26 +238,20 @@ class Mojo_Guardian {
 
             echo "\n<!-- Mojo Guardian Active: Rule ID " . esc_html($rule['ruleId']) . " -->\n";
 
-            // Title Override
             if (isset($rule['title']) && !empty($rule['title'])) {
                 add_filter('pre_get_document_title', function() use ($rule) {
                     return $rule['title'];
                 }, 100);
-                // Also support older themes
                 add_filter('wp_title', function() use ($rule) {
                     return $rule['title'];
                 }, 100);
             }
 
-            // Meta Description Override
             $desc = isset($rule['metaDesc']) ? $rule['metaDesc'] : (isset($rule['metaDescription']) ? $rule['metaDescription'] : '');
             if (!empty($desc)) {
-                // Remove existing meta description if possible
-                remove_action('wp_head', 'rel_canonical'); // handled separately if needed
                 echo '<meta name="description" content="' . esc_attr($desc) . '" />' . "\n";
             }
 
-            // Schema Injection
             if (isset($rule['schema'])) {
                 echo '<script type="application/ld+json">' . json_encode($rule['schema']) . '</script>' . "\n";
             }

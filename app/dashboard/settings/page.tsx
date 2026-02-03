@@ -88,7 +88,10 @@ export default function SettingsPage() {
                 Advanced analytics
               </p>
             </div>
-            <button className="mt-4 w-full px-4 py-2.5 bg-[#111] hover:bg-[#161616] border border-gray-800 rounded-lg text-sm text-gray-300 transition-colors">
+            <button 
+              onClick={() => window.location.href = '/pricing'}
+              className="mt-4 w-full px-4 py-2.5 bg-[#111] hover:bg-[#161616] border border-gray-800 rounded-lg text-sm text-gray-300 transition-colors"
+            >
               Manage Subscription
             </button>
           </div>

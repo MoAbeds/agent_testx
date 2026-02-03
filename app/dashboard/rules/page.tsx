@@ -1,6 +1,7 @@
 'use client';
 
-import { useAuth, db } from '@/lib/hooks';
+import { useAuth } from '@/lib/hooks';
+import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import CreateRuleForm from '@/components/CreateRuleForm';

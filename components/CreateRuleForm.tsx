@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Send, Loader2 } from 'lucide-react';
-import { useAuth, db } from '@/lib/hooks';
+import { useAuth } from '@/lib/hooks';
+import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
 export default function CreateRuleForm() {

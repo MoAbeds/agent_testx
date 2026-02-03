@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     const response = await fetch(url);
     const html = await response.text();
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
     
     const prompt = `Act as an Elite SEO Content Optimizer.
 Analyze this HTML and improve its on-page SEO:

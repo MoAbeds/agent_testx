@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       } catch (e) {}
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
     const results = [];
 
     // 3. Process each gap (Limited to top 5 for performance in bulk)

@@ -167,7 +167,7 @@ async function generateGeminiOptimization(
   current: { title: string | null; metaDesc: string | null; path: string },
   keywords?: string[] | null
 ) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
   
   // Build the prompt with optional keyword data
   let keywordContext = '';

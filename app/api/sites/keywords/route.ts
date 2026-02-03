@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     let analysis;
     if (googleKey && (snippets || manualIndustry)) {
       try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
     const analysisPrompt = manualIndustry 
       ? `Act as an Elite SEO Strategist.
 Target Website: ${site.domain}

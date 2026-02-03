@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     if (googleKey) {
       try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
         const prompt = `Act as an SEO Expert. 
 I have the following broken (404) URLs on my website:
 ${deadPages.map(p => p.path).join('\n')}

@@ -3,13 +3,9 @@ import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { upsertPage, logEvent } from '@/lib/db';
 import https from 'https';
+import axios from 'axios';
 
 export const dynamic = 'force-dynamic';
-
-// Create a persistent agent that ignores SSL errors
-const httpsAgent = new https.Agent({
-  rejectUnauthorized: false
-});
 
 // Simple HTML parsers
 function extractTitle(html: string): string | null {
@@ -62,83 +58,80 @@ export async function POST(request: NextRequest) {
     if (siteSnap.empty) return NextResponse.json({ error: 'Site not found' }, { status: 404 });
     const site = { id: siteSnap.docs[0].id, ...siteSnap.docs[0].data() as any };
 
-    const cleanDomainForTrigger = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
-    const protocolForTrigger = cleanDomainForTrigger.includes('localhost') ? 'http' : 'https';
-    const triggerUrl = `${protocolForTrigger}://${cleanDomainForTrigger}/?mojo_action=scrape&key=${site.apiKey}`;
+    const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    const protocol = cleanDomain.includes('localhost') ? 'http' : 'https';
     
+    // Trigger WordPress Internal Bridge
+    const triggerUrl = `${protocol}://${cleanDomain}/?mojo_action=scrape&key=${site.apiKey}`;
     console.log(`[Crawler] Triggering internal bridge: ${triggerUrl}`);
+    
     try {
-      // Using standard node fetch with agent for bridge trigger
-      await fetch(triggerUrl, { 
-        method: 'GET',
+      // Use Axios with custom agent to bypass SSL checks for bridge trigger
+      await axios.get(triggerUrl, {
+        httpsAgent: new https.Agent({ rejectUnauthorized: false }),
         headers: { 'User-Agent': 'MojoServer/1.0' },
-        next: { revalidate: 0 },
-        // @ts-ignore - Handle TLS issues
-        agent: httpsAgent
+        timeout: 10000
       });
       await new Promise(r => setTimeout(r, 2000));
-    } catch (triggerError) {
-      console.warn(`[Crawler] Internal bridge trigger failed (possibly SSL):`, triggerError);
+    } catch (triggerError: any) {
+      console.warn(`[Crawler] Internal bridge trigger failed (SSL/Network):`, triggerError.message);
     }
 
     const queue = ['/'];
     const visited = new Set<string>();
     const results = [];
 
+    // Custom Axios instance for the crawl to bypass SSL errors
+    const scraper = axios.create({
+      httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+      headers: { 
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 MojoScanner/3.0',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+      },
+      timeout: 15000,
+      validateStatus: () => true // Don't throw on 404
+    });
+
     while (queue.length > 0 && visited.size < maxPages) {
       const path = queue.shift();
       if (!path || visited.has(path)) continue;
       visited.add(path);
 
-      const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
-      const protocol = cleanDomain.includes('localhost') ? 'http' : 'https';
       const url = `${protocol}://${cleanDomain}${path}`;
 
       try {
-        const response = await fetch(url, { 
-          headers: { 
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 MojoScanner/3.0',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-          },
-          next: { revalidate: 0 },
-          // @ts-ignore - Bypass SSL errors
-          agent: httpsAgent
-        });
-        
+        const response = await scraper.get(url);
         const status = response.status;
         console.log(`[Crawler] Fetched ${path} - Status: ${status}`);
         
-        if (!response.ok) {
-          if (status === 404) {
-            await logEvent(site.id, '404_DETECTED', path, { message: `Broken link found during scan` });
+        if (status === 404) {
+          await logEvent(site.id, '404_DETECTED', path, { message: `Broken link found during scan` });
+        }
+
+        if (status === 200 && typeof response.data === 'string') {
+          const html = response.data;
+          const title = extractTitle(html);
+          const metaDesc = extractMetaDescription(html);
+          const h1Match = html.match(/<h1[^>]*>([^<]*)<\/h1>/i);
+          const h1 = h1Match ? h1Match[1].trim() : null;
+
+          if (!title || title.length < 10 || !metaDesc || metaDesc.length < 50 || !h1) {
+            await logEvent(site.id, 'SEO_GAP', path, { 
+              message: `SEO issues found: ${!title ? 'Missing Title' : title.length < 10 ? 'Title too short' : ''} ${!metaDesc ? 'Missing Meta' : metaDesc.length < 50 ? 'Meta too short' : ''} ${!h1 ? 'Missing H1' : ''}`.trim()
+            });
           }
-          results.push({ path, status });
-          continue;
-        }
 
-        const html = await response.text();
-        const title = extractTitle(html);
-        const metaDesc = extractMetaDescription(html);
-        const h1Match = html.match(/<h1[^>]*>([^<]*)<\/h1>/i);
-        const h1 = h1Match ? h1Match[1].trim() : null;
-
-        if (!title || title.length < 10 || !metaDesc || metaDesc.length < 50 || !h1) {
-          await logEvent(site.id, 'SEO_GAP', path, { 
-            message: `SEO issues found: ${!title ? 'Missing Title' : title.length < 10 ? 'Title too short' : ''} ${!metaDesc ? 'Missing Meta' : metaDesc.length < 50 ? 'Meta too short' : ''} ${!h1 ? 'Missing H1' : ''}`.trim()
-          });
-        }
-
-        await upsertPage(site.id, path, { title, metaDesc, h1, status });
-        results.push({ path, status });
-
-        if (status === 200) {
+          await upsertPage(site.id, path, { title, metaDesc, h1, status });
+          
           const newLinks = extractLinks(html, domain);
           for (const link of newLinks) {
             if (!visited.has(link)) queue.push(link);
           }
         }
-      } catch (e) {
-        console.error(`Failed crawling ${path}:`, e);
+        
+        results.push({ path, status });
+      } catch (e: any) {
+        console.error(`Failed crawling ${path}:`, e.message);
       }
     }
 

@@ -6,26 +6,26 @@ import ResearchButton from '@/components/ResearchButton';
 import SiteManager from '@/components/SiteManager';
 import ScanButton from '@/components/ScanButton';
 import { Shield, Target, Search, Sparkles, Loader2 } from 'lucide-react';
-import { useAuth } from '@/lib/hooks';
-import { db } from '@/lib/firebase';
+import { useAuth, db } from '@/lib/hooks';
 import { collection, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function GuardianPage() {
+function GuardianContent() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const [allSites, setAllSites] = useState<any[]>([]);
   const [site, setSite] = useState<any>(null);
   const [issues, setIssues] = useState<any[]>([]);
+  const [auditEvents, setAuditEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const selectedSiteId = searchParams.get('siteId');
 
+  // 1. Listen to all sites for this user
   useEffect(() => {
     if (!user || !db) return;
 
-    // 1. Listen to all sites for this user
     const sitesQuery = query(collection(db, "sites"), where("userId", "==", user.uid));
     const unsubscribeSites = onSnapshot(sitesQuery, (snap) => {
       const sites = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -45,11 +45,10 @@ export default function GuardianPage() {
     return () => unsubscribeSites();
   }, [user, selectedSiteId]);
 
+  // 2. Listen to issues (404s, Gaps) for the selected site
   useEffect(() => {
     if (!site?.id || !db) return;
 
-    // 2. Listen to issues (events) for this site
-    // NOTE: This query might require a composite index in Firebase.
     const issuesQuery = query(
       collection(db, "events"), 
       where("siteId", "==", site.id),
@@ -62,12 +61,31 @@ export default function GuardianPage() {
       setLoading(false);
     }, (error) => {
       console.error("Issues fetch error:", error);
-      // If index is missing, fallback to non-ordered query to prevent hang
       setLoading(false);
     });
 
     return () => unsubscribeIssues();
-  }, [site]);
+  }, [site?.id]);
+
+  // 3. Listen to all events for the Audit Trail
+  useEffect(() => {
+    if (!site?.id || !db) return;
+
+    const auditQuery = query(
+      collection(db, "events"), 
+      where("siteId", "==", site.id),
+      orderBy("occurredAt", "desc"),
+      limit(20)
+    );
+
+    const unsubscribeAudit = onSnapshot(auditQuery, (snap) => {
+      setAuditEvents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (error) => {
+      console.error("Audit fetch error:", error);
+    });
+
+    return () => unsubscribeAudit();
+  }, [site?.id]);
 
   if (loading) {
     return (
@@ -80,6 +98,7 @@ export default function GuardianPage() {
   if (!site) {
     return (
       <div className="p-8 text-center">
+        <Globe className="mx-auto text-gray-600 mb-4" size={48} />
         <h1 className="text-2xl font-bold text-white mb-4">No Site Found</h1>
         <p className="text-gray-400">Please connect a site in the Overview first.</p>
       </div>
@@ -209,9 +228,42 @@ export default function GuardianPage() {
         </div>
 
         <div>
-          <AuditFeed initialEvents={site.events || []} siteId={site.id} />
+          <AuditFeed initialEvents={auditEvents} siteId={site.id} />
         </div>
       </div>
     </div>
   );
+}
+
+export default function GuardianPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="animate-spin text-terminal" size={48} />
+      </div>
+    }>
+      <GuardianContent />
+    </Suspense>
+  );
+}
+
+function Globe(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+    </svg>
+  )
 }

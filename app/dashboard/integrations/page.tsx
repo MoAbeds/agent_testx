@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { auth, useAuth } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
+import { useAuth } from '@/lib/hooks';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { Plug, RefreshCw, MessageSquare } from 'lucide-react';
 

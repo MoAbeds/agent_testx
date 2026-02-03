@@ -1,7 +1,7 @@
 'use client';
 
 import { Sidebar } from '@/components/Sidebar';
-import { useAuth } from '@/lib/firebase';
+import { useAuth } from '@/lib/hooks';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';

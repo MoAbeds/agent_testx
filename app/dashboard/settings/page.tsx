@@ -1,6 +1,7 @@
 'use client';
 
-import { auth, useAuth } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
+import { useAuth } from '@/lib/hooks';
 import { signOut } from 'firebase/auth';
 import { User, CreditCard, Mail, Shield, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';

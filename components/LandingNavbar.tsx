@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Terminal, User } from 'lucide-react';
-import { useAuth } from '@/lib/firebase';
+import { useAuth } from '@/lib/hooks';
 
 export default function LandingNavbar() {
   const { user, loading } = useAuth();

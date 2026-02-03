@@ -111,12 +111,27 @@ Return ONLY a JSON object: {
       } catch (e) {}
     }
 
+    // 4. Calculate Data-Driven Visibility and Authority
+    const organicCount = data.organic?.length || 0;
+    const relatedCount = keywordMarketData.length;
+    
+    // Visibility: Based on organic footprint + keyword discovery breadth
+    // Baseline of 500 + (100 per organic result) + (20 per related keyword)
+    const calculatedVisibility = (500 + (organicCount * 100) + (relatedCount * 25)).toString();
+
+    // Authority: Based on "Niche Saturation"
+    // We look at how many 'People Also Ask' and 'Related' signals Google returns for the niche
+    // A higher number of signals indicates a more established niche authority requirement
+    const baseAuthority = 60;
+    const authorityBonus = Math.min(35, (relatedCount * 2) + (organicCount * 1.5));
+    const calculatedAuthority = Math.floor(baseAuthority + authorityBonus).toString();
+
     const keywords = {
       industry: analysis.industry,
       topic: analysis.topic,
       detailed: keywordMarketData.slice(0, 15),
-      visibility: (data.searchParameters?.q ? Math.floor(Math.random() * 500) + 800 : 0).toString(),
-      authority: (Math.floor(Math.random() * 20) + 65).toString(),
+      visibility: calculatedVisibility,
+      authority: calculatedAuthority,
       updatedAt: new Date().toISOString()
     };
 

@@ -1,5 +1,6 @@
 'use client';
 
+// Build trigger for Railway cache
 import { useEffect, useState, useRef } from 'react';
 import { FileBarChart, AlertTriangle, CheckCircle, FileText, Download, RefreshCw, TrendingUp, Target, Loader2, Shield } from 'lucide-react';
 import jsPDF from 'jspdf';

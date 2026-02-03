@@ -51,7 +51,7 @@ Return ONLY a JSON array of objects: [{"from": "/path", "to": "/target", "confid
         const result = await model.generateContent(prompt);
         const text = result.response.text().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
         mappings = JSON.parse(text);
-      } catch (e) {
+      } catch (e: any) {
         console.error("[Fix-404] AI failed:", e.message);
       }
     }

@@ -1,12 +1,12 @@
 <?php
-/**
- * Plugin Name: Mojo Guardian Bridge
- * Plugin URI: https://mojo-saas.vercel.app
- * Description: Autonomous SEO infrastructure for WordPress. Connects your site to the Mojo Guardian AI for real-time 301 redirects and SEO optimization.
- * Version: 1.0.0
- * Author: Mojo AI
- * License: GPL2
- */
+/*
+Plugin Name: Mojo Guardian SEO Agent
+Plugin URI: https://agenttestx-production-19d6.up.railway.app
+Description: The official autonomous SEO infrastructure bridge for WordPress. Handles AI-powered redirects and metadata injections in real-time.
+Version: 1.0.2
+Author: Mojo AI Team
+License: GPL2
+*/
 
 if (!defined('ABSPATH')) exit;
 

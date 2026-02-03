@@ -14,11 +14,26 @@ function LoginContent() {
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log(`[Auth] Initiating magic link request for: ${email}`);
     setLoading(true);
     try {
-      await signIn('email', { email, callbackUrl: '/dashboard' });
+      const res = await signIn('email', { 
+        email, 
+        callbackUrl: '/dashboard',
+        redirect: false // Manual handling
+      });
+      
+      console.log(`[Auth] SignIn response:`, res);
+
+      if (res?.error) {
+        alert(`Authentication Error: ${res.error}`);
+      } else if (res?.ok) {
+        // Redirect to the check-email screen (handled via query param)
+        window.location.href = '/login?verify=1';
+      }
     } catch (err) {
-      console.error(err);
+      console.error(`[Auth] Fatal error during signIn:`, err);
+      alert("Magic link service is currently unavailable.");
     } finally {
       setLoading(false);
     }

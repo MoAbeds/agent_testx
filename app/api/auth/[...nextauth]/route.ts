@@ -34,6 +34,11 @@ const handler = NextAuth({
         },
       },
       from: process.env.EMAIL_FROM,
+      async sendVerificationRequest({ identifier: email, url, provider }) {
+        console.log(`[NextAuth] Sending magic link to ${email}`);
+        console.log(`[NextAuth] Magic Link URL: ${url}`);
+        // Default send verification request behavior continues...
+      },
     }),
   ],
   callbacks: {

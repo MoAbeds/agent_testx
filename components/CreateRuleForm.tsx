@@ -1,37 +1,47 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Send, Loader2 } from 'lucide-react';
+import { useAuth, db } from '@/lib/hooks';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 export default function CreateRuleForm() {
   const router = useRouter();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [siteId, setSiteId] = useState('');
   const [formData, setFormData] = useState({
     path: '',
     title: '',
     metaDescription: '',
   });
 
+  useEffect(() => {
+    if (!user || !db) return;
+    // Get first site available for this user to associate the rule
+    getDocs(query(collection(db, "sites"), where("userId", "==", user.uid)))
+      .then(snap => {
+        if (!snap.empty) setSiteId(snap.docs[0].id);
+      });
+  }, [user]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!siteId) return alert("Please add a site in the Overview page first.");
     setLoading(true);
 
     try {
       const res = await fetch('/api/rules', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, siteId }),
       });
 
-      if (!res.ok) {
-        throw new Error('Failed to create rule');
-      }
+      if (!res.ok) throw new Error('Failed to create rule');
 
       setFormData({ path: '', title: '', metaDescription: '' });
-      router.refresh();
+      alert("Manual rule deployed successfully!");
     } catch (error) {
       console.error(error);
       alert('Failed to create rule');

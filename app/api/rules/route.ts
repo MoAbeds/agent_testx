@@ -1,34 +1,28 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from "@/lib/firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
-export async function POST(req: Request) {
+export const dynamic = 'force-dynamic';
+
+export async function POST(req: NextRequest) {
   try {
-    const { path, title, metaDescription } = await req.json();
+    const { siteId, path, title, metaDescription } = await req.json();
 
-    if (!path || !title || !metaDescription) {
+    if (!siteId || !path || !title || !metaDescription) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Get the default site (for now, just the first one)
-    const site = await prisma.site.findFirst();
-
-    if (!site) {
-      return NextResponse.json({ error: 'No site found. Please seed the database.' }, { status: 404 });
-    }
-
-    // Create the rule
-    const rule = await prisma.optimizationRule.create({
-      data: {
-        siteId: site.id,
-        targetPath: path,
-        type: 'REWRITE_META',
-        payload: JSON.stringify({ title, metaDescription }),
-        isActive: true, // Auto-activate for this demo
-        confidence: 1.0, // Manual rule = 100% confidence
-      },
+    const ruleRef = await addDoc(collection(db, "rules"), {
+      siteId,
+      targetPath: path,
+      type: 'REWRITE_META',
+      payload: JSON.stringify({ title, metaDescription }),
+      isActive: true, 
+      confidence: 1.0, 
+      createdAt: serverTimestamp()
     });
 
-    return NextResponse.json(rule);
+    return NextResponse.json({ id: ruleRef.id, success: true });
   } catch (error) {
     console.error('Error creating rule:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

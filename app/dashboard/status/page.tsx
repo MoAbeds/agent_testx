@@ -30,14 +30,19 @@ function StatusContent() {
           where("isActive", "==", true)
         ));
 
-        // Fetch latest event (sync proxy)
+        // Fetch latest events (sync proxy)
         const eventsSnap = await getDocs(query(
           collection(db, "events"),
           where("siteId", "==", siteDoc.id),
-          limit(1) // We'll just take any event as a heartbeat for now
+          limit(10)
         ));
 
-        const lastEvent = !eventsSnap.empty ? eventsSnap.docs[0].data() : null;
+        const siteEvents = eventsSnap.docs.map(d => d.data());
+        const sortedSiteEvents = siteEvents.sort((a: any, b: any) => 
+          (b.occurredAt?.seconds || 0) - (a.occurredAt?.seconds || 0)
+        );
+
+        const lastEvent = sortedSiteEvents[0] || null;
         const lastSyncDate = lastEvent?.occurredAt?.toDate() || null;
         
         // Consider online if synced in last 15 mins (WordPress/Node SDK frequency)

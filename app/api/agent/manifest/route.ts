@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSiteByApiKey, getActiveRules } from '@/lib/db';
+import { getSiteByApiKey, getActiveRules, logEvent } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +16,11 @@ export async function GET(request: NextRequest) {
   if (!site) {
     return NextResponse.json({ error: 'Invalid API Key' }, { status: 403 });
   }
+
+  // Log heartbeat to show agent is "Live" in Dashboard
+  await logEvent(site.id, 'HEARTBEAT', 'Agent Handshake', { 
+    agent: request.headers.get('user-agent') || 'unknown' 
+  });
 
   const dbRules = await getActiveRules(site.id);
   const formattedRules: Record<string, any> = {};

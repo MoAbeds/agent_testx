@@ -21,12 +21,21 @@ export default function SignupPage() {
 
   const handleGoogleSignIn = async () => {
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    
     try {
-      await signInWithPopup(auth, provider);
-      router.push('/dashboard');
+      const result = await signInWithPopup(auth, provider);
+      if (result.user) {
+        window.location.href = '/dashboard';
+      }
     } catch (error: any) {
-      console.error(error);
-      alert(error.message);
+      console.error("[Auth] Google Sign-In Error:", error);
+      if (error.code === 'auth/popup-closed-by-user') return;
+      
+      // FALLBACK: Use Redirect if popup is blocked
+      import("firebase/auth").then(({ signInWithRedirect }) => {
+        signInWithRedirect(auth, provider);
+      });
     }
   };
 

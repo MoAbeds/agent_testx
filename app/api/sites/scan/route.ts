@@ -25,16 +25,28 @@ function extractMetaDescription(html: string): string | null {
 
 function extractLinks(html: string, domain: string): string[] {
   const links: string[] = [];
-  const regex = /<a[^>]+href=["']([^"']*)["'][^>]*>/gi;
+  // Better regex to catch various link formats
+  const regex = /href=["'](https?:\/\/[^"']+|(?:\/|(?!\/))[^"'\s>]+)["']/gi;
   let match;
+  
+  const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
   while ((match = regex.exec(html)) !== null) {
     let href = match[1];
+    
+    // Ignore anchors, mailto, tel, etc.
+    if (href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('javascript:')) continue;
+
+    // Normalize links
     if (href.startsWith('/')) {
       links.push(href);
-    } else if (href.startsWith(domain) || href.startsWith(`https://${domain}`) || href.startsWith(`http://${domain}`)) {
+    } else if (href.includes(cleanDomain)) {
       try {
         const url = new URL(href);
-        links.push(url.pathname);
+        // Ensure it's actually on the same domain
+        if (url.hostname.replace(/^www\./, '') === cleanDomain.replace(/^www\./, '')) {
+          links.push(url.pathname);
+        }
       } catch (e) {}
     }
   }
@@ -78,15 +90,24 @@ export async function POST(request: NextRequest) {
 
       try {
         const response = await fetch(url, { 
-          headers: { 'User-Agent': 'MojoScanner/2.0' },
+          headers: { 
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 MojoScanner/3.0',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+          },
           next: { revalidate: 0 }
         });
         const status = response.status;
+        console.log(`[Crawler] Fetched ${path} - Status: ${status}`);
         
-        if (status === 404) {
-          await logEvent(site.id, '404_DETECTED', path, { message: `Broken link found during scan` });
+        if (!response.ok) {
+          console.error(`[Crawler] Failed to fetch ${path}: ${status} ${response.statusText}`);
+          if (status === 404) {
+            await logEvent(site.id, '404_DETECTED', path, { message: `Broken link found during scan` });
+          }
+          results.push({ path, status });
+          continue;
         }
-
         const html = await response.text();
         const title = extractTitle(html);
         const metaDesc = extractMetaDescription(html);

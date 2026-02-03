@@ -1,6 +1,7 @@
 'use client';
 
-import { useAuth, db } from '@/lib/hooks';
+import { useAuth } from '@/lib/hooks';
+import { db } from '@/lib/firebase';
 import { collection, query, limit, getDocs, onSnapshot } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { LogTable } from '@/components/LogTable';

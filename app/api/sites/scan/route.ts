@@ -63,17 +63,31 @@ export async function POST(request: NextRequest) {
     const qSite = query(sitesRef, where("domain", "==", domain));
     const siteSnap = await getDocs(qSite);
     if (siteSnap.empty) return NextResponse.json({ error: 'Site not found' }, { status: 404 });
-    const site = { id: siteSnap.docs[0].id, ...siteSnap.docs[0].data() };
+    const site = { id: siteSnap.docs[0].id, ...siteSnap.docs[0].data() as any };
 
-    // 2. Clear old issues
-    const eventsRef = collection(db, "events");
-    const qEvents = query(eventsRef, where("siteId", "==", site.id));
-    const eventsSnap = await getDocs(qEvents);
-    for (const d of eventsSnap.docs) {
-      if (['404_DETECTED', 'SEO_GAP'].includes(d.data().type)) {
-        await deleteDoc(doc(db, "events", d.id));
-      }
+    // --- NEW: Trigger WordPress Internal Bridge ---
+    const cleanDomainForTrigger = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    const protocolForTrigger = cleanDomainForTrigger.includes('localhost') ? 'http' : 'https';
+    const triggerUrl = `${protocolForTrigger}://${cleanDomainForTrigger}/?mojo_action=scrape&key=${site.apiKey}`;
+    
+    console.log(`[Crawler] Triggering internal bridge: ${triggerUrl}`);
+    try {
+      await fetch(triggerUrl, { 
+        method: 'GET',
+        headers: { 'User-Agent': 'MojoServer/1.0' },
+        next: { revalidate: 0 }
+      });
+      // Wait 2 seconds for the plugin to process and push data to /api/sites/ingest
+      await new Promise(r => setTimeout(r, 2000));
+    } catch (triggerError) {
+      console.warn(`[Crawler] Internal bridge trigger failed:`, triggerError);
     }
+    // ----------------------------------------------
+
+    // 2. Clear old issues (unless they were just ingested by the bridge)
+    // The bridge push to /api/sites/ingest handles its own clearing.
+    // If we run the external scanner, we might want to skip clearing if we trust the bridge more.
+    // But for now, we'll let the external scanner find anything the internal one missed (like 404s).
 
     const queue = ['/'];
     const visited = new Set<string>();

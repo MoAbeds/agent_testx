@@ -19,19 +19,7 @@ export default function ScanButton({ domain, apiKey }: ScanButtonProps) {
     setErrorMessage(null);
 
     try {
-      // Step 1: Tell WordPress to scrape itself (Internal Bridge)
-      if (apiKey) {
-        try {
-          const protocol = domain.includes('localhost') ? 'http' : 'https';
-          const triggerUrl = `${protocol}://${domain.replace(/\/$/, '')}/?mojo_action=scrape&key=${apiKey}`;
-          console.log(`[Scan] Triggering internal bridge: ${triggerUrl}`);
-          await fetch(triggerUrl, { mode: 'no-cors' });
-        } catch (e) {
-          console.warn("Internal bridge trigger failed", e);
-        }
-      }
-
-      // Step 2: Run the standard external crawler
+      // Standard external crawler call (which now triggers the internal bridge server-side)
       const response = await fetch('/api/sites/scan', {
         method: 'POST',
         headers: {

@@ -15,7 +15,10 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
   const [loading, setLoading] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
 
-  const fixAll404s = async () => {
+  // Sync state when props change (real-time updates from parent)
+  useEffect(() => {
+    setIssues(initialIssues);
+  }, [initialIssues]);
     setLoading(true);
     try {
       const res = await fetch('/api/agent/fix-404', {

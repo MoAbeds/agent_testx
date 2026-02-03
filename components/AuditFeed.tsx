@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { History, RotateCcw, Check, RefreshCw } from 'lucide-react';
 
 interface Event {
@@ -14,6 +14,11 @@ interface Event {
 export default function AuditFeed({ initialEvents, siteId }: { initialEvents: Event[], siteId: string }) {
   const [events, setEvents] = useState(initialEvents);
   const [undoing, setUndoing] = useState<string | null>(null);
+
+  // Sync state when props change (real-time updates from parent)
+  useEffect(() => {
+    setEvents(initialEvents);
+  }, [initialEvents]);
 
   const undoAction = async (eventId: string, details: string | null) => {
     if (!details) return;

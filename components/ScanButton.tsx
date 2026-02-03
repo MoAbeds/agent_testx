@@ -6,9 +6,10 @@ import { useRouter } from 'next/navigation';
 
 interface ScanButtonProps {
   domain: string;
+  apiKey?: string;
 }
 
-export default function ScanButton({ domain }: ScanButtonProps) {
+export default function ScanButton({ domain, apiKey }: ScanButtonProps) {
   const [status, setStatus] = useState<'idle' | 'scanning' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const router = useRouter();
@@ -18,6 +19,19 @@ export default function ScanButton({ domain }: ScanButtonProps) {
     setErrorMessage(null);
 
     try {
+      // Step 1: Tell WordPress to scrape itself (Internal Bridge)
+      if (apiKey) {
+        try {
+          const protocol = domain.includes('localhost') ? 'http' : 'https';
+          const triggerUrl = `${protocol}://${domain.replace(/\/$/, '')}/?mojo_action=scrape&key=${apiKey}`;
+          console.log(`[Scan] Triggering internal bridge: ${triggerUrl}`);
+          await fetch(triggerUrl, { mode: 'no-cors' });
+        } catch (e) {
+          console.warn("Internal bridge trigger failed", e);
+        }
+      }
+
+      // Step 2: Run the standard external crawler
       const response = await fetch('/api/sites/scan', {
         method: 'POST',
         headers: {

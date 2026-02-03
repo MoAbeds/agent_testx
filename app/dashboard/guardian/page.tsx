@@ -136,7 +136,7 @@ function GuardianContent() {
             <div className="flex items-center gap-2">
               <SiteManager sites={allSites} currentSiteId={site.id} />
               <div className="w-32">
-                <ScanButton domain={site.domain} />
+                <ScanButton domain={site.domain} apiKey={site.apiKey} />
               </div>
             </div>
             

@@ -27,6 +27,40 @@ class Mojo_Guardian {
         if (!empty($this->api_key)) {
             add_action('template_redirect', array($this, 'handle_redirects'), 1);
             add_action('wp_head', array($this, 'inject_seo_meta'), 1);
+            
+            // Internal Scraper Bridge
+            add_action('init', array($this, 'handle_internal_scrape'));
+        }
+    }
+
+    public function handle_internal_scrape() {
+        if (isset($_GET['mojo_action']) && $_GET['mojo_action'] === 'scrape') {
+            if ($_GET['key'] !== $this->api_key) wp_die('Unauthorized');
+
+            $pages = get_posts(array('post_type' => 'any', 'posts_per_page' => 20, 'post_status' => 'publish'));
+            $results = array();
+
+            foreach ($pages as $post) {
+                $url = get_permalink($post->ID);
+                $results[] = array(
+                    'path' => parse_url($url, PHP_URL_PATH),
+                    'title' => get_the_title($post->ID),
+                    'metaDesc' => get_post_meta($post->ID, '_aioseo_description', true) ?: get_post_meta($post->ID, '_yoast_wpseo_metadesc', true) ?: '',
+                    'status' => 200
+                );
+            }
+
+            // Also check for 404s in recent comments/logs if available, or just send pages for now
+            
+            // Push to SaaS
+            $ingest_url = str_replace('/agent/manifest', '/sites/ingest', $this->manifest_url);
+            wp_remote_post($ingest_url, array(
+                'headers' => array('Authorization' => 'Bearer ' . $this->api_key, 'Content-Type' => 'application/json'),
+                'body' => json_encode(array('domain' => $_SERVER['HTTP_HOST'], 'pages' => $results)),
+                'blocking' => false // Background task
+            ));
+
+            wp_send_json_success('Scrape initiated internally.');
         }
     }
 

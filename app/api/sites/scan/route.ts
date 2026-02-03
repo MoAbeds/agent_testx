@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from "@/lib/firebase";
+import { collection, query, where, getDocs, deleteDoc, doc } from "firebase/firestore";
+import { upsertPage, logEvent } from '@/lib/db';
 
 // Simple HTML parsers
 function extractTitle(html: string): string | null {
@@ -23,11 +25,8 @@ function extractLinks(html: string, domain: string): string[] {
   const links: string[] = [];
   const regex = /<a[^>]+href=["']([^"']*)["'][^>]*>/gi;
   let match;
-  
   while ((match = regex.exec(html)) !== null) {
     let href = match[1];
-    
-    // Normalize links
     if (href.startsWith('/')) {
       links.push(href);
     } else if (href.startsWith(domain) || href.startsWith(`https://${domain}`) || href.startsWith(`http://${domain}`)) {
@@ -37,28 +36,30 @@ function extractLinks(html: string, domain: string): string[] {
       } catch (e) {}
     }
   }
-  // Return unique internal paths
   return Array.from(new Set(links));
 }
 
 export async function POST(request: NextRequest) {
   try {
     const { domain, maxPages = 20 } = await request.json();
-
     if (!domain) return NextResponse.json({ error: 'Domain is required' }, { status: 400 });
 
-    const site = await prisma.site.findFirst({ where: { domain } });
-    if (!site) return NextResponse.json({ error: 'Site not found' }, { status: 404 });
+    // 1. Find Site
+    const sitesRef = collection(db, "sites");
+    const qSite = query(sitesRef, where("domain", "==", domain));
+    const siteSnap = await getDocs(qSite);
+    if (siteSnap.empty) return NextResponse.json({ error: 'Site not found' }, { status: 404 });
+    const site = { id: siteSnap.docs[0].id, ...siteSnap.docs[0].data() };
 
-    console.log(`[Crawler] Starting scan for ${domain}`);
-
-    // Clear old issues for this site before fresh scan to prevent duplicates
-    await prisma.agentEvent.deleteMany({
-      where: { 
-        siteId: site.id, 
-        type: { in: ['404_DETECTED', 'SEO_GAP'] } 
+    // 2. Clear old issues
+    const eventsRef = collection(db, "events");
+    const qEvents = query(eventsRef, where("siteId", "==", site.id));
+    const eventsSnap = await getDocs(qEvents);
+    for (const d of eventsSnap.docs) {
+      if (['404_DETECTED', 'SEO_GAP'].includes(d.data().type)) {
+        await deleteDoc(doc(db, "events", d.id));
       }
-    });
+    }
 
     const queue = ['/'];
     const visited = new Set<string>();
@@ -72,24 +73,16 @@ export async function POST(request: NextRequest) {
       const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
       const protocol = cleanDomain.includes('localhost') ? 'http' : 'https';
       const url = `${protocol}://${cleanDomain}${path}`;
-      console.log(`[Crawler] Fetching: ${url}`);
+
       try {
         const response = await fetch(url, { 
           headers: { 'User-Agent': 'MojoScanner/2.0' },
-          next: { revalidate: 0 } // Bypass cache
+          next: { revalidate: 0 }
         });
         const status = response.status;
         
         if (status === 404) {
-          // Log 404 in AgentEvents for the "Undo/Fix" system
-          await prisma.agentEvent.create({
-            data: {
-              siteId: site.id,
-              type: '404_DETECTED',
-              path: path,
-              details: JSON.stringify({ message: `Broken link found during scan` })
-            }
-          });
+          await logEvent(site.id, '404_DETECTED', path, { message: `Broken link found during scan` });
         }
 
         const html = await response.text();
@@ -98,30 +91,15 @@ export async function POST(request: NextRequest) {
         const h1Match = html.match(/<h1[^>]*>([^<]*)<\/h1>/i);
         const h1 = h1Match ? h1Match[1].trim() : null;
 
-        // Check for SEO Gaps
         if (!title || title.length < 10 || !metaDesc || metaDesc.length < 50 || !h1) {
-          await prisma.agentEvent.create({
-            data: {
-              siteId: site.id,
-              type: 'SEO_GAP',
-              path: path,
-              details: JSON.stringify({ 
-                message: `SEO issues found: ${!title ? 'Missing Title' : title.length < 10 ? 'Title too short' : ''} ${!metaDesc ? 'Missing Meta' : metaDesc.length < 50 ? 'Meta too short' : ''} ${!h1 ? 'Missing H1' : ''}`.trim()
-              })
-            }
+          await logEvent(site.id, 'SEO_GAP', path, { 
+            message: `SEO issues found: ${!title ? 'Missing Title' : title.length < 10 ? 'Title too short' : ''} ${!metaDesc ? 'Missing Meta' : metaDesc.length < 50 ? 'Meta too short' : ''} ${!h1 ? 'Missing H1' : ''}`.trim()
           });
         }
 
-        // Save Page
-        await prisma.page.upsert({
-          where: { siteId_path: { siteId: site.id, path } },
-          update: { title, metaDesc, h1, status, lastCrawled: new Date() },
-          create: { siteId: site.id, path, title, metaDesc, h1, status, lastCrawled: new Date() }
-        });
-
+        await upsertPage(site.id, path, { title, metaDesc, h1, status });
         results.push({ path, status });
 
-        // Extract and add new links to queue
         if (status === 200) {
           const newLinks = extractLinks(html, domain);
           for (const link of newLinks) {
@@ -135,6 +113,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, pagesCrawled: results.length, results });
   } catch (error) {
+    console.error('Scan error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

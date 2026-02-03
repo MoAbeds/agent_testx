@@ -1,9 +1,9 @@
 'use client';
 
 import { useAuth } from '@/lib/hooks';
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useEffect, useState, Suspense } from 'react';
-import { Shield, Globe, Clock, CheckCircle, Loader2 } from 'lucide-react';
+import { Shield, Globe, Clock, CheckCircle, Loader2, Check, X, RefreshCw } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import CreateRuleForm from '@/components/CreateRuleForm';
 
@@ -11,11 +11,11 @@ function RulesContent() {
   const { user } = useAuth();
   const [rules, setRules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user || !db) return;
 
-    // Use a simple query to avoid composite index requirements
     const q = query(
       collection(db, "rules"), 
       where("siteId", "!=", "") 
@@ -23,14 +23,11 @@ function RulesContent() {
 
     const unsubscribe = onSnapshot(q, (snap) => {
       const allRules = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      
-      // Sort manually in memory to bypass Firebase index requirement
       const sortedRules = allRules.sort((a: any, b: any) => {
         const tA = a.createdAt?.seconds || 0;
         const tB = b.createdAt?.seconds || 0;
         return tB - tA;
       });
-
       setRules(sortedRules);
       setLoading(false);
     }, (error) => {
@@ -40,6 +37,22 @@ function RulesContent() {
 
     return () => unsubscribe();
   }, [user]);
+
+  const toggleRuleStatus = async (ruleId: string, siteId: string, currentStatus: boolean) => {
+    setUpdating(ruleId);
+    try {
+      const res = await fetch('/api/rules/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ruleId, siteId, isActive: !currentStatus })
+      });
+      if (!res.ok) throw new Error("Failed to update rule");
+    } catch (e) {
+      alert("Error updating rule status.");
+    } finally {
+      setUpdating(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -61,10 +74,10 @@ function RulesContent() {
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-100 flex items-center gap-2 font-serif">
               <Shield className="text-gray-400" size={20} />
-              Active Rules
+              Deployment Console
             </h2>
             <span className="text-xs text-gray-500 bg-gray-900 px-2 py-1 rounded border border-gray-800 font-mono">
-              {rules.length} Total
+              {rules.length} Total Rules
             </span>
           </div>
 
@@ -89,13 +102,29 @@ function RulesContent() {
                           <h3 className="font-mono text-sm text-terminal font-bold">{rule.targetPath}</h3>
                         </div>
                       </div>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${
-                        rule.isActive 
-                          ? 'bg-green-900/20 text-green-400 border-green-900/50' 
-                          : 'bg-yellow-900/20 text-yellow-400 border-yellow-900/50'
-                      }`}>
-                        {rule.isActive ? 'Active' : 'Draft'}
-                      </span>
+                      
+                      <div className="flex items-center gap-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${
+                          rule.isActive 
+                            ? 'bg-green-900/20 text-green-400 border-green-900/50' 
+                            : 'bg-yellow-900/20 text-yellow-400 border-yellow-900/50'
+                        }`}>
+                          {rule.isActive ? 'Active' : 'Draft'}
+                        </span>
+                        
+                        <button
+                          onClick={() => toggleRuleStatus(rule.id, rule.siteId, rule.isActive)}
+                          disabled={updating === rule.id}
+                          className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                            rule.isActive 
+                              ? 'bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20' 
+                              : 'bg-terminal/10 text-terminal border border-terminal/20 hover:bg-terminal/20'
+                          }`}
+                        >
+                          {updating === rule.id ? <RefreshCw className="animate-spin" size={12} /> : rule.isActive ? <X size={12} /> : <Check size={12} />}
+                          {rule.isActive ? 'Deactivate' : 'Approve'}
+                        </button>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm bg-[#111] p-3 rounded-lg border border-gray-800/50">

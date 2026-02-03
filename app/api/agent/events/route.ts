@@ -1,31 +1,42 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/firebase';
+import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
-  // In a real app, you'd check session/auth here to ensure the user owns the site
-  
-  // Fetch the last 50 events
-  const events = await prisma.agentEvent.findMany({
-    take: 50,
-    orderBy: {
-      occurredAt: 'desc',
-    }
-  });
+export async function GET() {
+  try {
+    if (!db) return NextResponse.json([]);
 
-  // If no events exist yet (fresh DB), return some "system init" logs
-  if (events.length === 0) {
-    return NextResponse.json([
+    const q = query(
+      collection(db, "events"), 
+      orderBy("occurredAt", "desc"), 
+      limit(50)
+    );
+    
+    const snapshot = await getDocs(q);
+    const events = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      // Handle Firebase Timestamps for JSON serialization
+      occurredAt: doc.data().occurredAt?.toDate?.() || new Date()
+    }));
+
+    if (events.length === 0) {
+      return NextResponse.json([
         {
-            id: 'init',
-            type: 'INFO',
-            path: 'System',
-            details: JSON.stringify({ message: 'System initialized. Waiting for agent traffic...' }),
-            occurredAt: new Date(),
+          id: 'init',
+          type: 'INFO',
+          path: 'System',
+          details: JSON.stringify({ message: 'System initialized. Waiting for agent traffic...' }),
+          occurredAt: new Date(),
         }
-    ]);
-  }
+      ]);
+    }
 
-  return NextResponse.json(events);
+    return NextResponse.json(events);
+  } catch (error) {
+    console.error('Failed to fetch logs:', error);
+    return NextResponse.json({ error: 'Failed to fetch logs' }, { status: 500 });
+  }
 }

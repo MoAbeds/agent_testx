@@ -1,72 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { randomUUID } from 'crypto';
+import { createSite } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const { domain } = await request.json();
+    const { domain, userId } = await request.json();
 
-    if (!domain || typeof domain !== 'string') {
+    if (!domain || !userId) {
       return NextResponse.json(
-        { error: 'Domain is required' },
+        { error: 'Domain and userId are required' },
         { status: 400 }
       );
     }
 
-    // Normalize domain (strip protocol, trailing slashes)
+    // Normalize domain
     const normalizedDomain = domain
       .replace(/^https?:\/\//, '')
       .replace(/\/+$/, '')
       .toLowerCase();
 
-    // Generate unique API key
-    const apiKey = `mojo_${randomUUID().replace(/-/g, '')}`;
-
-    // Get first user from DB (MVP approach)
-    // In production, use session/auth
-    let user = await prisma.user.findFirst();
-    
-    if (!user) {
-      // Create a default user if none exists
-      user = await prisma.user.create({
-        data: {
-          email: 'admin@localhost',
-          name: 'Admin',
-        },
-      });
-    }
-
-    // Check if site already exists for this user
-    const existingSite = await prisma.site.findFirst({
-      where: {
-        domain: normalizedDomain,
-        userId: user.id,
-      },
-    });
-
-    if (existingSite) {
-      return NextResponse.json(
-        { error: 'Site already exists' },
-        { status: 409 }
-      );
-    }
-
-    // Create the site
-    const site = await prisma.site.create({
-      data: {
-        domain: normalizedDomain,
-        apiKey,
-        userId: user.id,
-      },
-    });
+    // Create the site in Firestore
+    const { id, apiKey } = await createSite(userId, normalizedDomain);
 
     return NextResponse.json({ 
       site: {
-        id: site.id,
-        domain: site.domain,
-        createdAt: site.createdAt,
+        id,
+        domain: normalizedDomain,
       },
       apiKey 
     }, { status: 201 });

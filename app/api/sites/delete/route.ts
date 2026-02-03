@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from "@/lib/firebase";
+import { doc, deleteDoc, collection, query, where, getDocs } from "firebase/firestore";
+
+export const dynamic = 'force-dynamic';
 
 export async function DELETE(request: NextRequest) {
   try {
@@ -9,10 +12,23 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'siteId is required' }, { status: 400 });
     }
 
-    // Delete the site (Prisma Cascade will handle pages, rules, and events)
-    await prisma.site.delete({
-      where: { id: siteId }
-    });
+    // 1. Delete associated Pages
+    const pagesQ = query(collection(db, "pages"), where("siteId", "==", siteId));
+    const pagesSnap = await getDocs(pagesQ);
+    for (const d of pagesSnap.docs) await deleteDoc(doc(db, "pages", d.id));
+
+    // 2. Delete associated Rules
+    const rulesQ = query(collection(db, "rules"), where("siteId", "==", siteId));
+    const rulesSnap = await getDocs(rulesQ);
+    for (const d of rulesSnap.docs) await deleteDoc(doc(db, "rules", d.id));
+
+    // 3. Delete associated Events
+    const eventsQ = query(collection(db, "events"), where("siteId", "==", siteId));
+    const eventsSnap = await getDocs(eventsQ);
+    for (const d of eventsSnap.docs) await deleteDoc(doc(db, "events", d.id));
+
+    // 4. Delete the Site
+    await deleteDoc(doc(db, "sites", siteId));
 
     return NextResponse.json({ 
       success: true, 

@@ -1,69 +1,93 @@
+'use client';
+
 import TerminalFeed from '@/components/TerminalFeed';
 import StatsCard from '@/components/StatsCard';
 import DiffViewer from '@/components/DiffViewer';
-import { Activity, ShieldCheck, DollarSign, LayoutDashboard, FileText, Bot, Settings as SettingsIcon } from 'lucide-react';
-import { prisma } from '@/lib/prisma';
+import { Activity, ShieldCheck, LayoutDashboard, FileText, Bot } from 'lucide-react';
+import { useAuth, db } from '@/lib/hooks';
+import { collection, query, where, getDocs, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
 import AddSiteForm from '@/components/AddSiteForm';
 import ScanButton from '@/components/ScanButton';
 import OptimizeButton from '@/components/OptimizeButton';
 
-// Force dynamic rendering so we get fresh DB stats on refresh
-export const dynamic = 'force-dynamic';
+export default function Dashboard() {
+  const { user } = useAuth();
+  const [stats, setStats] = useState({ sites: 0, pages: 0, rules: 0 });
+  const [pages, setPages] = useState<any[]>([]);
+  const [latestRule, setLatestRule] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-export default async function Dashboard() {
-  // Fetch real stats from DB
-  const siteCount = await prisma.site.count();
-  const pageCount = await prisma.page.count();
-  const rulesCount = await prisma.optimizationRule.count({
-    where: { isActive: true }
-  });
-  
-  // Fetch the latest optimization rule for the Diff Viewer
-  const latestRule = await prisma.optimizationRule.findFirst({
-    where: { type: 'REWRITE_META' },
-    orderBy: { createdAt: 'desc' },
-    include: { site: true }
-  });
+  useEffect(() => {
+    if (!user || !db) return;
+
+    // Real-time Stats & Data
+    const sitesQuery = query(collection(db, "sites"), where("userId", "==", user.uid));
+    
+    const unsubscribeSites = onSnapshot(sitesQuery, async (sitesSnap) => {
+      const siteCount = sitesSnap.size;
+      let pageCount = 0;
+      let activeRules = 0;
+      let allPages: any[] = [];
+
+      for (const siteDoc of sitesSnap.docs) {
+        const siteId = siteDoc.id;
+        
+        // Count Pages
+        const pagesSnap = await getDocs(query(collection(db, "pages"), where("siteId", "==", siteId)));
+        pageCount += pagesSnap.size;
+        allPages = [...allPages, ...pagesSnap.docs.map(d => ({ id: d.id, ...d.data(), domain: siteDoc.data().domain }))];
+
+        // Count Rules
+        const rulesSnap = await getDocs(query(collection(db, "rules"), where("siteId", "==", siteId), where("isActive", "==", true)));
+        activeRules += rulesSnap.size;
+      }
+
+      setStats({ sites: siteCount, pages: pageCount, rules: activeRules });
+      setPages(allPages.sort((a, b) => b.lastCrawled?.seconds - a.lastCrawled?.seconds).slice(0, 5));
+      setLoading(false);
+    });
+
+    return () => unsubscribeSites();
+  }, [user]);
+
+  // Fetch latest rule for Diff Viewer
+  useEffect(() => {
+    if (!user || !db) return;
+    const rulesQuery = query(
+      collection(db, "rules"), 
+      where("isActive", "==", true),
+      orderBy("createdAt", "desc"),
+      limit(1)
+    );
+    return onSnapshot(rulesQuery, (snap) => {
+      if (!snap.empty) setLatestRule(snap.docs[0].data());
+    });
+  }, [user]);
 
   let diffData = null;
   if (latestRule) {
     try {
-        const payload = JSON.parse(latestRule.payload as string);
-        // Find the page this rule applies to to show the original content
-        const page = await prisma.page.findFirst({
-          where: { siteId: latestRule.siteId, path: latestRule.targetPath }
-        });
-
-        diffData = {
-            path: latestRule.targetPath,
-            domain: latestRule.site.domain,
-            oldTitle: page?.title || "Original Title",
-            newTitle: payload.title,
-            oldMeta: page?.metaDesc || "Original Meta",
-            newMeta: payload.metaDesc
-        };
+      const payload = JSON.parse(latestRule.payload);
+      diffData = {
+        path: latestRule.targetPath,
+        oldTitle: "Original Title",
+        newTitle: payload.title,
+        oldMeta: "Original Meta",
+        newMeta: payload.metaDesc
+      };
     } catch (e) {}
   }
-
-  // Fetch discovered pages
-  const pages = await prisma.page.findMany({
-    orderBy: { lastCrawled: 'desc' },
-    take: 5,
-    include: { site: true }
-  });
-
-  // In a real app, ROI would be calculated from analytics events
-  const roiValue = "$1,240"; 
 
   return (
     <div className="p-4 md:p-8">
         <header className="mb-8">
           <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Overview</h1>
-          <p className="text-sm md:text-base text-gray-400">Real-time infrastructure monitoring</p>
+          <p className="text-sm md:text-base text-gray-400">Real-time SEO infrastructure monitoring</p>
           
           <div className="mt-6 flex items-center gap-2 text-xs text-terminal bg-terminal/5 border border-terminal/20 w-fit px-3 py-1.5 rounded-full">
             <div className="w-2 h-2 rounded-full bg-terminal animate-pulse shadow-[0_0_8px_#22c55e]" />
-            Live Connection
+            Live Firebase Connection
           </div>
         </header>
 
@@ -71,35 +95,32 @@ export default async function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <StatsCard 
             title="Sites Connected"
-            value={siteCount.toString()}
+            value={stats.sites.toString()}
             change="+1"
             trend="up"
             icon={Activity}
           />
           <StatsCard 
             title="Pages Scanned"
-            value={pageCount.toString()}
-            change={pageCount > 0 ? "+100%" : "0%"}
+            value={stats.pages.toString()}
+            change={stats.pages > 0 ? "+100%" : "0%"}
             trend="up"
             icon={FileText}
           />
           <StatsCard 
             title="Active Rules"
-            value={rulesCount.toString()}
+            value={stats.rules.toString()}
             change="+100%"
             trend="up"
             icon={ShieldCheck}
           />
         </div>
 
-        {/* Sites & Scanning */}
         <div className="mb-8">
             <AddSiteForm />
         </div>
 
-        {/* Dashboard Grid Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Column (2/3) */}
           <div className="lg:col-span-2 space-y-8">
             <div>
               <h2 className="text-xl font-bold text-gray-100 mb-4 flex items-center gap-2 font-serif">
@@ -114,7 +135,7 @@ export default async function Dashboard() {
                {diffData ? (
                    <div className="space-y-2">
                      <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold ml-1">
-                       Target: <span className="text-blue-400 font-mono">{diffData.domain}{diffData.path}</span>
+                       Target Path: <span className="text-blue-400 font-mono">{diffData.path}</span>
                      </p>
                      <DiffViewer 
                           oldTitle={diffData.oldTitle} 
@@ -125,7 +146,7 @@ export default async function Dashboard() {
                    </div>
                ) : (
                    <div className="p-6 border border-gray-800 rounded-xl bg-gray-900/50 text-gray-500 text-center">
-                       No optimizations found yet. Scan a site and click the wand!
+                       No optimizations found yet.
                    </div>
                )}
             </div>
@@ -170,7 +191,6 @@ export default async function Dashboard() {
             </div>
           </div>
 
-          {/* Right Column (1/3) */}
           <div className="space-y-6">
             <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl p-6 shadow-sm">
               <h3 className="text-lg font-bold text-gray-100 mb-4 flex items-center gap-2 font-serif">
@@ -178,18 +198,8 @@ export default async function Dashboard() {
                 System Health
               </h3>
               <div className="space-y-6">
-                <HealthBar label="API Latency" value={92} color="bg-terminal" />
-                <HealthBar label="Error Rate" value={4} color="bg-red-500" />
-                <HealthBar label="Cache Hit Ratio" value={88} color="bg-blue-500" />
-              </div>
-            </div>
-
-            <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl p-6 shadow-sm">
-              <h3 className="text-lg font-bold text-gray-100 mb-4 font-serif">Quick Actions</h3>
-              <div className="space-y-3">
-                <ActionButton label="Purge Cache" />
-                <ActionButton label="Generate Report" />
-                <ActionButton label="Configure Agents" />
+                <HealthBar label="Firebase Sync" value={100} color="bg-terminal" />
+                <HealthBar label="Agent Latency" value={12} color="bg-blue-500" />
               </div>
             </div>
           </div>
@@ -212,13 +222,5 @@ function HealthBar({ label, value, color }: { label: string, value: number, colo
         />
       </div>
     </div>
-  );
-}
-
-function ActionButton({ label }: { label: string }) {
-  return (
-    <button className="w-full text-left px-4 py-3 rounded-lg bg-[#111] hover:bg-[#161616] border border-gray-800 text-sm text-gray-300 transition-all hover:border-gray-700">
-      {label}
-    </button>
   );
 }

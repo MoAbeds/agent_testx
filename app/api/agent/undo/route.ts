@@ -1,51 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from "@/lib/firebase";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { logEvent } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
     const { ruleId, siteId } = await request.json();
+    if (!ruleId || !siteId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
 
-    if (!ruleId || !siteId) {
-      return NextResponse.json({ error: 'ruleId and siteId are required' }, { status: 400 });
-    }
+    const ruleRef = doc(db, "rules", ruleId);
+    const ruleSnap = await getDoc(ruleRef);
+    if (!ruleSnap.exists()) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    // 1. Find the rule
-    const rule = await prisma.optimizationRule.findUnique({
-      where: { id: ruleId }
-    });
+    await updateDoc(ruleRef, { isActive: false });
+    await logEvent(siteId, 'UNDO_ACTION', ruleSnap.data().targetPath, { message: `Reverted optimization`, ruleId });
 
-    if (!rule || rule.siteId !== siteId) {
-      return NextResponse.json({ error: 'Rule not found or unauthorized' }, { status: 404 });
-    }
-
-    // 2. Deactivate the rule
-    const updatedRule = await prisma.optimizationRule.update({
-      where: { id: ruleId },
-      data: { isActive: false }
-    });
-
-    // 3. Log the "Undo" event
-    await prisma.agentEvent.create({
-      data: {
-        siteId,
-        type: 'UNDO_ACTION',
-        path: rule.targetPath,
-        details: JSON.stringify({ 
-          message: `User undid optimization for ${rule.targetPath}`,
-          previousType: rule.type,
-          ruleId: rule.id
-        })
-      }
-    });
-
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Action successfully undone',
-      rule: updatedRule 
-    });
-
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Undo error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

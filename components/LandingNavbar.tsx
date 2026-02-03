@@ -2,10 +2,10 @@
 
 import Link from 'next/link';
 import { Terminal, User } from 'lucide-react';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/lib/firebase';
 
 export default function LandingNavbar() {
-  const { data: session } = useSession();
+  const { user, loading } = useAuth();
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-gray-800/50 bg-[#0a0a0a]/80 backdrop-blur-xl">
@@ -29,7 +29,7 @@ export default function LandingNavbar() {
         </div>
 
         {/* Auth Button */}
-        {session ? (
+        {!loading && user ? (
           <Link
             href="/dashboard"
             className="flex items-center gap-2 px-5 py-2 text-sm font-medium text-terminal border border-terminal/30 rounded-lg hover:bg-terminal/10 transition-all"
@@ -37,13 +37,15 @@ export default function LandingNavbar() {
             <User size={16} />
             Dashboard
           </Link>
-        ) : (
+        ) : !loading ? (
           <Link
             href="/login"
             className="px-5 py-2 text-sm font-medium text-gray-300 border border-gray-700 rounded-lg hover:bg-gray-800 hover:text-white hover:border-gray-600 transition-all"
           >
             Login
           </Link>
+        ) : (
+          <div className="w-20 h-8 bg-gray-800 animate-pulse rounded-lg" />
         )}
       </div>
     </nav>

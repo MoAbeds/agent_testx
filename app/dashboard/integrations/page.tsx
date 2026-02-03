@@ -1,16 +1,26 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn, useSession } from 'next-auth/react';
+import { auth, useAuth } from '@/lib/firebase';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { Plug, RefreshCw, MessageSquare } from 'lucide-react';
 
 export default function IntegrationsPage() {
-  const { data: session, status } = useSession();
+  const { user, loading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleConnect = () => {
+  const handleConnect = async () => {
     setIsLoading(true);
-    signIn('google', { callbackUrl: '/dashboard/integrations' });
+    const provider = new GoogleAuthProvider();
+    // Scope for Search Console
+    provider.addScope('https://www.googleapis.com/auth/webmasters.readonly');
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -35,7 +45,7 @@ export default function IntegrationsPage() {
             </div>
 
             <div>
-              {status === 'authenticated' ? (
+              {!loading && user ? (
                 <div className="flex items-center gap-3">
                   <span className="flex items-center gap-2 text-sm text-terminal bg-terminal/10 px-3 py-1.5 rounded-full border border-terminal/20">
                     <span className="relative flex h-2 w-2">
@@ -48,7 +58,7 @@ export default function IntegrationsPage() {
               ) : (
                 <button
                   onClick={handleConnect}
-                  disabled={isLoading}
+                  disabled={isLoading || loading}
                   className="flex items-center gap-2 px-4 py-2 bg-white text-black font-medium rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
                 >
                   {isLoading ? <RefreshCw className="animate-spin" size={18} /> : 'Connect'}
@@ -56,9 +66,9 @@ export default function IntegrationsPage() {
               )}
             </div>
           </div>
-          {status === 'authenticated' && session?.user?.email && (
+          {!loading && user?.email && (
             <div className="px-6 pb-4 pt-0">
-              <p className="text-xs text-gray-500">Signed in as {session.user.email}</p>
+              <p className="text-xs text-gray-500">Signed in as {user.email}</p>
             </div>
           )}
         </div>

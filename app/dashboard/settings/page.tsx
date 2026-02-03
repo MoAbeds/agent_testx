@@ -1,10 +1,18 @@
 'use client';
 
-import { signOut, useSession } from 'next-auth/react';
+import { auth, useAuth } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
 import { User, CreditCard, Mail, Shield, LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function SettingsPage() {
-  const { data: session } = useSession();
+  const { user } = useAuth();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    await signOut(auth);
+    router.push('/');
+  };
 
   return (
     <div className="p-8">
@@ -22,7 +30,7 @@ export default function SettingsPage() {
               Profile
             </h2>
             <button 
-              onClick={() => signOut({ callbackUrl: '/' })}
+              onClick={handleSignOut}
               className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors"
             >
               <LogOut size={14} />
@@ -36,11 +44,11 @@ export default function SettingsPage() {
               </div>
               <div>
                 <h3 className="text-lg font-medium text-gray-100">
-                  {session?.user?.name || 'Admin User'}
+                  {user?.displayName || 'Admin User'}
                 </h3>
                 <p className="text-sm text-gray-500 flex items-center gap-1.5">
                   <Mail size={14} />
-                  {session?.user?.email || 'admin@example.com'}
+                  {user?.email || 'admin@example.com'}
                 </p>
               </div>
             </div>

@@ -148,7 +148,7 @@ function InstallContent() {
               Our WordPress bridge handles server-side redirects before your page even loads for maximum speed.
             </p>
             <a 
-              href="https://github.com/MoAbeds/agent_testx/raw/main/mojo-saas/mojo-guardian.zip"
+              href="https://github.com/MoAbeds/agent_testx/raw/main/mojo-guardian.zip"
               download
               className="mt-6 inline-block w-full text-center py-2 rounded-lg bg-terminal text-black text-xs font-bold hover:bg-green-400 transition-all"
             >

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSiteByApiKey, getActiveRules } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('Authorization');
   const apiKey = authHeader?.replace('Bearer ', '');

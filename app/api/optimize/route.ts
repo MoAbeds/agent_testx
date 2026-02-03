@@ -4,6 +4,8 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { google } from 'googleapis';
 import { getServerSession } from 'next-auth';
 
+export const dynamic = 'force-dynamic';
+
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_KEY || '');
 

@@ -3,6 +3,8 @@ import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { upsertPage, logEvent } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 // Simple HTML parsers
 function extractTitle(html: string): string | null {
   const match = html.match(/<title[^>]*>([^<]*)<\/title>/i);

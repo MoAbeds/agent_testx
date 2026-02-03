@@ -31,13 +31,15 @@ export default function GuardianPage() {
       const sites = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setAllSites(sites);
 
-      // Select site: from URL or first available
       const current = selectedSiteId 
         ? sites.find(s => s.id === selectedSiteId) 
         : sites[0];
       
       setSite(current || null);
       if (!current) setLoading(false);
+    }, (error) => {
+      console.error("Sites fetch error:", error);
+      setLoading(false);
     });
 
     return () => unsubscribeSites();
@@ -47,6 +49,7 @@ export default function GuardianPage() {
     if (!site?.id || !db) return;
 
     // 2. Listen to issues (events) for this site
+    // NOTE: This query might require a composite index in Firebase.
     const issuesQuery = query(
       collection(db, "events"), 
       where("siteId", "==", site.id),
@@ -56,6 +59,10 @@ export default function GuardianPage() {
 
     const unsubscribeIssues = onSnapshot(issuesQuery, (snap) => {
       setIssues(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    }, (error) => {
+      console.error("Issues fetch error:", error);
+      // If index is missing, fallback to non-ordered query to prevent hang
       setLoading(false);
     });
 

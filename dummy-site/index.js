@@ -1,5 +1,7 @@
 const express = require('express');
 const mojoGuardian = require('./mojo-agent');
+const fs = require('fs');
+const path = require('path');
 const app = express();
 const port = process.env.PORT || 3001;
 
@@ -7,6 +9,11 @@ const port = process.env.PORT || 3001;
 app.use(mojoGuardian);
 
 // 2. DEFINE SOME ROUTES
+app.get('/static-test', (req, res) => {
+  const html = fs.readFileSync(path.join(__dirname, 'static-test.html'), 'utf8');
+  res.send(html);
+});
+
 app.get('/', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -50,9 +57,6 @@ app.get('/pricing', (req, res) => {
     </html>
   `);
 });
-
-// A route that doesn't exist will trigger a 404
-// The Mojo Guardian will intercept /broken-link if we set up a rule!
 
 app.listen(port, () => {
   console.log(`Dummy Site listening at http://localhost:${port}`);

@@ -6,9 +6,8 @@ import ResearchButton from '@/components/ResearchButton';
 import SiteManager from '@/components/SiteManager';
 import ScanButton from '@/components/ScanButton';
 import { Shield, Target, Search, Sparkles, Loader2 } from 'lucide-react';
-import { useAuth } from '@/lib/hooks';
-import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import { useAuth, db } from '@/lib/hooks';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
@@ -50,15 +49,37 @@ function GuardianContent() {
   useEffect(() => {
     if (!site?.id || !db) return;
 
+    // Use a simple query to avoid composite index requirements
     const issuesQuery = query(
       collection(db, "events"), 
-      where("siteId", "==", site.id),
-      where("type", "in", ["404_DETECTED", "SEO_GAP"]),
-      orderBy("occurredAt", "desc")
+      where("siteId", "==", site.id)
     );
 
     const unsubscribeIssues = onSnapshot(issuesQuery, (snap) => {
-      setIssues(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      
+      // Filter for Issues
+      const filteredIssues = allEvents.filter((e: any) => 
+        ["404_DETECTED", "SEO_GAP"].includes(e.type)
+      );
+
+      // Sort by occurredAt (Manual in-memory sort to bypass index requirement)
+      const sortedIssues = filteredIssues.sort((a: any, b: any) => {
+        const tA = a.occurredAt?.seconds || 0;
+        const tB = b.occurredAt?.seconds || 0;
+        return tB - tA;
+      });
+
+      setIssues(sortedIssues);
+      
+      // Update Audit Trail (Top 20 any events)
+      const sortedAudit = allEvents.sort((a: any, b: any) => {
+        const tA = a.occurredAt?.seconds || 0;
+        const tB = b.occurredAt?.seconds || 0;
+        return tB - tA;
+      }).slice(0, 20);
+      
+      setAuditEvents(sortedAudit);
       setLoading(false);
     }, (error) => {
       console.error("Issues fetch error:", error);
@@ -66,26 +87,6 @@ function GuardianContent() {
     });
 
     return () => unsubscribeIssues();
-  }, [site?.id]);
-
-  // 3. Listen to all events for the Audit Trail
-  useEffect(() => {
-    if (!site?.id || !db) return;
-
-    const auditQuery = query(
-      collection(db, "events"), 
-      where("siteId", "==", site.id),
-      orderBy("occurredAt", "desc"),
-      limit(20)
-    );
-
-    const unsubscribeAudit = onSnapshot(auditQuery, (snap) => {
-      setAuditEvents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    }, (error) => {
-      console.error("Audit fetch error:", error);
-    });
-
-    return () => unsubscribeAudit();
   }, [site?.id]);
 
   if (loading) {

@@ -10,17 +10,18 @@ export async function GET() {
 
     const q = query(
       collection(db, "events"), 
-      orderBy("occurredAt", "desc"), 
       limit(50)
     );
     
     const snapshot = await getDocs(q);
-    const events = snapshot.docs.map(doc => ({
+    const rawEvents = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      // Handle Firebase Timestamps for JSON serialization
       occurredAt: doc.data().occurredAt?.toDate?.() || new Date()
     }));
+
+    // Sort in memory to avoid index requirements
+    const events = rawEvents.sort((a: any, b: any) => b.occurredAt - a.occurredAt);
 
     if (events.length === 0) {
       return NextResponse.json([

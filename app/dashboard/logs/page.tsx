@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { LogTable } from '@/components/LogTable';
 import { Bot, Activity, Loader2 } from 'lucide-react';
 
+// Force redeploy to resolve Railway cache issues
 export default function LogsPage() {
   const { user } = useAuth();
   const [logs, setLogs] = useState<any[]>([]);

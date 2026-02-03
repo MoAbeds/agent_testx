@@ -6,9 +6,9 @@
 
 require_once 'mojo-agent.php';
 
-// Configuration (Normally from env or config file)
-$apiKey = 'mojo-local-secret-123';
-$manifestUrl = 'http://localhost:3000/api/agent/manifest';
+// Configuration (From Environment or fallback)
+$apiKey = getenv('MOJO_API_KEY') ?: 'mojo-local-secret-123';
+$manifestUrl = getenv('MOJO_MANIFEST_URL') ?: 'http://localhost:3000/api/agent/manifest';
 
 // INITIALIZE THE GUARDIAN
 new MojoGuardian($apiKey, $manifestUrl);

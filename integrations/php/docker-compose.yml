@@ -1,0 +1,11 @@
+services:
+  php-site:
+    image: php:8.1-apache
+    restart: always
+    ports:
+      - "8081:80"
+    volumes:
+      - .:/var/www/html
+    environment:
+      - MOJO_API_KEY=mojo-local-secret-123
+      - MOJO_MANIFEST_URL=http://host.docker.internal:3000/api/agent/manifest

@@ -3,6 +3,7 @@
 import GuardianIssues from '@/components/GuardianIssues';
 import AuditFeed from '@/components/AuditFeed';
 import ResearchButton from '@/components/ResearchButton';
+import AddKeywordButton from '@/components/AddKeywordButton';
 import SiteManager from '@/components/SiteManager';
 import ScanButton from '@/components/ScanButton';
 import { Shield, Target, Search, Sparkles, Loader2 } from 'lucide-react';
@@ -171,7 +172,10 @@ function GuardianContent() {
                 <Sparkles className="text-terminal" size={18} />
                 Market Intelligence
               </h2>
-              <ResearchButton siteId={site.id} initialIndustry={keywords.industry !== 'N/A' ? keywords.industry : ''} />
+              <div className="flex items-center gap-3">
+                <AddKeywordButton siteId={site.id} />
+                <ResearchButton siteId={site.id} initialIndustry={keywords.industry !== 'N/A' ? keywords.industry : ''} />
+              </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">

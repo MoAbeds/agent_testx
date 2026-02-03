@@ -3,7 +3,7 @@
 Plugin Name: Mojo Guardian SEO Agent
 Plugin URI: https://agenttestx-production-19d6.up.railway.app
 Description: The official autonomous SEO infrastructure bridge for WordPress. Handles AI-powered redirects and metadata injections in real-time.
-Version: 1.0.7
+Version: 1.0.8
 Author: Mojo AI Team
 License: GPL2
 */
@@ -30,6 +30,29 @@ class Mojo_Guardian {
             
             // Internal Scraper Bridge (Triggered by SaaS Server)
             add_action('init', array($this, 'handle_internal_scrape'));
+
+            // Passive 404 Detection (Reports broken links to SaaS as users hit them)
+            add_action('wp', array($this, 'report_404_to_mojo'));
+        }
+    }
+
+    public function report_404_to_mojo() {
+        if (is_404()) {
+            $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+            $event_url = str_replace('/agent/manifest', '/agent/events/report', $this->manifest_url);
+            
+            wp_remote_post($event_url, array(
+                'headers' => array(
+                    'Authorization' => 'Bearer ' . $this->api_key, 
+                    'Content-Type'  => 'application/json'
+                ),
+                'body' => json_encode(array(
+                    'type' => '404_DETECTED',
+                    'path' => $path,
+                    'details' => array('message' => 'Passive detection: User hit a 404 page.')
+                )),
+                'blocking' => false
+            ));
         }
     }
 

@@ -1,21 +1,75 @@
-import { prisma } from '@/lib/prisma';
+'use client';
+
 import GuardianIssues from '@/components/GuardianIssues';
 import AuditFeed from '@/components/AuditFeed';
 import ResearchButton from '@/components/ResearchButton';
 import SiteManager from '@/components/SiteManager';
 import ScanButton from '@/components/ScanButton';
-import { Shield, Target, Search, Sparkles } from 'lucide-react';
+import { Shield, Target, Search, Sparkles, Loader2 } from 'lucide-react';
+import { useAuth, db } from '@/lib/hooks';
+import { collection, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
-export const dynamic = 'force-dynamic';
+export default function GuardianPage() {
+  const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const [allSites, setAllSites] = useState<any[]>([]);
+  const [site, setSite] = useState<any>(null);
+  const [issues, setIssues] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-export default async function GuardianPage({ searchParams }: { searchParams: { siteId?: string } }) {
-  const allSites = await prisma.site.findMany({
-    select: { id: true, domain: true }
-  });
+  const selectedSiteId = searchParams.get('siteId');
 
-  const selectedSiteId = searchParams.siteId || allSites[0]?.id;
+  useEffect(() => {
+    if (!user || !db) return;
 
-  if (!selectedSiteId) {
+    // 1. Listen to all sites for this user
+    const sitesQuery = query(collection(db, "sites"), where("userId", "==", user.uid));
+    const unsubscribeSites = onSnapshot(sitesQuery, (snap) => {
+      const sites = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setAllSites(sites);
+
+      // Select site: from URL or first available
+      const current = selectedSiteId 
+        ? sites.find(s => s.id === selectedSiteId) 
+        : sites[0];
+      
+      setSite(current || null);
+      if (!current) setLoading(false);
+    });
+
+    return () => unsubscribeSites();
+  }, [user, selectedSiteId]);
+
+  useEffect(() => {
+    if (!site?.id || !db) return;
+
+    // 2. Listen to issues (events) for this site
+    const issuesQuery = query(
+      collection(db, "events"), 
+      where("siteId", "==", site.id),
+      where("type", "in", ["404_DETECTED", "SEO_GAP"]),
+      orderBy("occurredAt", "desc")
+    );
+
+    const unsubscribeIssues = onSnapshot(issuesQuery, (snap) => {
+      setIssues(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    });
+
+    return () => unsubscribeIssues();
+  }, [site]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="animate-spin text-terminal" size={48} />
+      </div>
+    );
+  }
+
+  if (!site) {
     return (
       <div className="p-8 text-center">
         <h1 className="text-2xl font-bold text-white mb-4">No Site Found</h1>
@@ -23,27 +77,6 @@ export default async function GuardianPage({ searchParams }: { searchParams: { s
       </div>
     );
   }
-
-  const site = await prisma.site.findUnique({
-    where: { id: selectedSiteId },
-    include: {
-      events: {
-        orderBy: { occurredAt: 'desc' },
-        take: 20
-      }
-    }
-  });
-
-  if (!site) return <div>Site not found</div>;
-
-  // Find 404s and SEO Gaps
-  const issues = await prisma.agentEvent.findMany({
-    where: { 
-      siteId: site.id,
-      type: { in: ['404_DETECTED', 'SEO_GAP'] }
-    },
-    orderBy: { occurredAt: 'desc' }
-  });
 
   // Extract keywords if present
   let keywords = { industry: 'N/A', topic: 'N/A', detailed: [], visibility: '0', authority: '0' };
@@ -163,14 +196,12 @@ export default async function GuardianPage({ searchParams }: { searchParams: { s
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        {/* Issues List (2/3) */}
         <div className="lg:col-span-2">
           <GuardianIssues initialIssues={issues} siteId={site.id} />
         </div>
 
-        {/* Audit Trail (1/3) */}
         <div>
-          <AuditFeed initialEvents={site.events} siteId={site.id} />
+          <AuditFeed initialEvents={site.events || []} siteId={site.id} />
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ShieldAlert, CheckCircle, ArrowRight, Wand2, RefreshCw, Sparkles } from 'lucide-react';
 
 interface Issue {
@@ -19,6 +19,8 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
   useEffect(() => {
     setIssues(initialIssues);
   }, [initialIssues]);
+
+  const fixAll404s = async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/agent/fix-404', {
@@ -54,7 +56,7 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
       });
       const data = await res.json();
       if (data.success) {
-        alert(`Successfully optimized ${data.appliedFixes} pages! Checks the Audit Trail below.`);
+        alert(`Successfully optimized ${data.appliedFixes} pages! Check the Audit Trail below.`);
         setIssues(issues.filter(i => i.type !== 'SEO_GAP'));
       }
     } catch (e) {

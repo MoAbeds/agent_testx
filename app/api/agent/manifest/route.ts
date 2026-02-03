@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     meta: {
       generatedAt: new Date().toISOString(),
       siteId: site.id,
-      domain: site.domain
+      domain: (site as any).domain
     },
     rules: formattedRules
   });

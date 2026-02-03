@@ -18,8 +18,8 @@ export default function PayPalButton({ planId, onSuccess, onError }: PayPalButto
     const initPayPal = async () => {
       try {
         paypal = await loadScript({ 
-          "client-id": process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "",
-          vault: true,
+          clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "",
+          vault: "true",
           intent: "subscription"
         });
 

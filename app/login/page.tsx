@@ -1,39 +1,68 @@
 'use client';
 
+import { auth } from "@/lib/firebase";
+import { GoogleAuthProvider, signInWithPopup, signInWithEmailLink, isSignInWithEmailLink, sendSignInLinkToEmail } from "firebase/auth";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from 'next/link';
-import { signIn } from 'next-auth/react';
 import { Terminal, Mail, Loader2 } from 'lucide-react';
-import { useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
 
 function LoginContent() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const router = useRouter();
   const searchParams = useSearchParams();
   const isVerify = searchParams.get('verify') === '1';
 
+  useEffect(() => {
+    // Handle Magic Link completion
+    if (isSignInWithEmailLink(auth, window.location.href)) {
+      let emailForSignIn = window.localStorage.getItem('emailForSignIn');
+      if (!emailForSignIn) {
+        emailForSignIn = window.prompt('Please provide your email for confirmation');
+      }
+      if (emailForSignIn) {
+        setLoading(true);
+        signInWithEmailLink(auth, emailForSignIn, window.location.href)
+          .then(() => {
+            window.localStorage.removeItem('emailForSignIn');
+            router.push('/dashboard');
+          })
+          .catch((error) => {
+            console.error(error);
+            alert(error.message);
+          })
+          .finally(() => setLoading(false));
+      }
+    }
+  }, [router]);
+
+  const handleGoogleSignIn = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      router.push('/dashboard');
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message);
+    }
+  };
+
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log(`[Auth] Initiating magic link request for: ${email}`);
     setLoading(true);
+    const actionCodeSettings = {
+      url: window.location.origin + '/login?verify=link',
+      handleCodeInApp: true,
+    };
     try {
-      const res = await signIn('email', { 
-        email, 
-        callbackUrl: '/dashboard',
-        redirect: false // Manual handling
-      });
-      
-      console.log(`[Auth] SignIn response:`, res);
-
-      if (res?.error) {
-        alert(`Authentication Error: ${res.error}`);
-      } else if (res?.ok) {
-        // Redirect to the check-email screen (handled via query param)
-        window.location.href = '/login?verify=1';
-      }
-    } catch (err) {
-      console.error(`[Auth] Fatal error during signIn:`, err);
-      alert("Magic link service is currently unavailable.");
+      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+      window.localStorage.setItem('emailForSignIn', email);
+      window.location.href = '/login?verify=1';
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message);
     } finally {
       setLoading(false);
     }
@@ -48,7 +77,7 @@ function LoginContent() {
           </div>
           <h1 className="text-2xl font-bold text-white mb-2">Check your email</h1>
           <p className="text-gray-400 text-sm mb-8">
-            We sent a magic link to <span className="text-white font-medium">{email}</span>. Click it to sign in instantly.
+            We sent a magic link. Click it to sign in instantly.
           </p>
           <button 
             onClick={() => window.location.href = '/login'}
@@ -63,7 +92,7 @@ function LoginContent() {
             Sign in to Mojo
           </h1>
           <p className="text-gray-400 text-center mb-8 text-sm">
-            Choose your preferred method to continue.
+            Powered by Firebase Auth.
           </p>
 
           <form onSubmit={handleEmailSignIn} className="space-y-4 mb-6">
@@ -100,7 +129,7 @@ function LoginContent() {
           </div>
 
           <button
-            onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
+            onClick={handleGoogleSignIn}
             className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white text-gray-900 font-medium rounded-lg hover:bg-gray-100 transition-colors"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -134,7 +163,6 @@ export default function LoginPage() {
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-terminal/5 rounded-full blur-[120px]" />
       </div>
 
-      {/* Logo */}
       <Link href="/" className="flex items-center gap-3 mb-8 group relative z-10">
         <div className="w-10 h-10 rounded-lg bg-terminal/10 border border-terminal/30 flex items-center justify-center group-hover:bg-terminal/20 transition-colors">
           <Terminal size={20} className="text-terminal" />
@@ -144,7 +172,6 @@ export default function LoginPage() {
         </span>
       </Link>
 
-      {/* Auth Card */}
       <div className="relative z-10 w-full max-w-md">
         <div className="absolute inset-0 bg-gradient-to-b from-terminal/10 to-transparent rounded-2xl blur-xl opacity-50" />
         <div className="relative bg-gray-900/60 backdrop-blur-xl border border-gray-800/50 rounded-2xl p-8 shadow-2xl">

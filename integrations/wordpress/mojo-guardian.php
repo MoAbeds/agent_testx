@@ -3,7 +3,7 @@
 Plugin Name: Mojo Guardian SEO Agent
 Plugin URI: https://agenttestx-production-19d6.up.railway.app
 Description: The official autonomous SEO infrastructure bridge for WordPress. Handles AI-powered redirects and metadata injections in real-time.
-Version: 1.0.2
+Version: 1.0.3
 Author: Mojo AI Team
 License: GPL2
 */
@@ -17,7 +17,7 @@ class Mojo_Guardian {
 
     public function __construct() {
         $this->api_key = get_option('mojo_guardian_api_key');
-        $this->manifest_url = get_option('mojo_guardian_manifest_url', 'https://mojo-saas.vercel.app/api/agent/manifest');
+        $this->manifest_url = get_option('mojo_guardian_manifest_url', 'https://agenttestx-production-19d6.up.railway.app/api/agent/manifest');
 
         // Admin Settings
         add_action('admin_menu', array($this, 'add_settings_page'));
@@ -48,6 +48,26 @@ class Mojo_Guardian {
     }
 
     public function render_settings_page() {
+        $status_message = '<span style="color:red">Disconnected</span>';
+        
+        if (!empty($this->api_key)) {
+            $response = wp_remote_get($this->manifest_url, array(
+                'headers' => array(
+                    'Authorization' => 'Bearer ' . $this->api_key,
+                ),
+                'timeout' => 5
+            ));
+
+            $code = wp_remote_retrieve_response_code($response);
+            
+            if ($code == 200) {
+                $status_message = '<span style="color:green">Active & Protecting</span>';
+            } elseif ($code == 403 || $code == 401) {
+                $status_message = '<span style="color:orange">Invalid API Key</span>';
+            } else {
+                $status_message = '<span style="color:gray">Connecting... (Status: ' . $code . ')</span>';
+            }
+        }
         ?>
         <div class="wrap">
             <h1>Mojo Guardian Settings</h1>
@@ -61,13 +81,14 @@ class Mojo_Guardian {
                     </tr>
                     <tr valign="top">
                         <th scope="row">Manifest URL</th>
-                        <td><input type="text" name="mojo_guardian_manifest_url" value="<?php echo esc_attr(get_option('mojo_guardian_manifest_url', 'https://mojo-saas.vercel.app/api/agent/manifest')); ?>" class="regular-text" /></td>
+                        <td><input type="text" name="mojo_guardian_manifest_url" value="<?php echo esc_attr(get_option('mojo_guardian_manifest_url', 'https://agenttestx-production-19d6.up.railway.app/api/agent/manifest')); ?>" class="regular-text" /></td>
                     </tr>
                 </table>
                 <?php submit_button(); ?>
             </form>
             <hr>
-            <p><strong>Status:</strong> <?php echo empty($this->api_key) ? '<span style="color:red">Disconnected</span>' : '<span style="color:green">Active & Protecting</span>'; ?></p>
+            <p><strong>Status:</strong> <?php echo $status_message; ?></p>
+            <p class="description">Your API key can be found in your <a href="https://agenttestx-production-19d6.up.railway.app/dashboard/install" target="_blank">Mojo Dashboard</a>.</p>
         </div>
         <?php
     }

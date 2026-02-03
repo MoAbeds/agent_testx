@@ -12,6 +12,7 @@ interface AgentLog {
   occurredAt: string;
 }
 
+// Build stability verification
 export default function TerminalFeed() {
   const [feed, setFeed] = useState<AgentLog[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);

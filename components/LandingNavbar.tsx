@@ -1,9 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { Terminal } from 'lucide-react';
+import { Terminal, User } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
 export default function LandingNavbar() {
+  const { data: session } = useSession();
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-gray-800/50 bg-[#0a0a0a]/80 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -25,13 +28,23 @@ export default function LandingNavbar() {
           </div>
         </div>
 
-        {/* Login Button */}
-        <Link
-          href="/login"
-          className="px-5 py-2 text-sm font-medium text-gray-300 border border-gray-700 rounded-lg hover:bg-gray-800 hover:text-white hover:border-gray-600 transition-all"
-        >
-          Login
-        </Link>
+        {/* Auth Button */}
+        {session ? (
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 px-5 py-2 text-sm font-medium text-terminal border border-terminal/30 rounded-lg hover:bg-terminal/10 transition-all"
+          >
+            <User size={16} />
+            Dashboard
+          </Link>
+        ) : (
+          <Link
+            href="/login"
+            className="px-5 py-2 text-sm font-medium text-gray-300 border border-gray-700 rounded-lg hover:bg-gray-800 hover:text-white hover:border-gray-600 transition-all"
+          >
+            Login
+          </Link>
+        )}
       </div>
     </nav>
   );

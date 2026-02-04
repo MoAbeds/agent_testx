@@ -26,6 +26,10 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
 
   const isFreePlan = user?.plan !== 'PRO';
 
+  useEffect(() => {
+    console.log("[GuardianIssues] User Plan:", user?.plan, "isFreePlan:", isFreePlan);
+  }, [user?.plan, isFreePlan]);
+
   const fixAll404s = async () => {
     if (isFreePlan) {
       return setNotification({ 

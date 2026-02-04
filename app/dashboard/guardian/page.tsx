@@ -26,49 +26,47 @@ function GuardianContent() {
 
   const selectedSiteId = searchParams.get('siteId');
 
-  // 1. Fetch only sites that BELONG to this specific user ID
+  // 1. Unified Site Listener (Strict Owner Filter)
   useEffect(() => {
     if (!user?.uid || !db) return;
 
-    // IMMEDIATE HARD WIPE on user change to prevent data ghosting
-    setAllSites([]);
-    setSite(null);
-    setIssues([]);
-    setAuditEvents([]);
-
     const sitesQuery = query(
       collection(db, "sites"), 
-      where("userId", "==", user.uid)
+      where("userId", "==", user.uid),
+      limit(20)
     );
     
     const unsubscribeSites = onSnapshot(sitesQuery, (snap) => {
       const sites = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
-      
-      // Secondary filter in JS to be 1000% sure
-      const verifiedSites = sites.filter((s: any) => s.userId === user.uid);
-      setAllSites(verifiedSites);
+      setAllSites(sites);
 
       const current = selectedSiteId 
-        ? verifiedSites.find((s: any) => s.id === selectedSiteId) 
-        : verifiedSites[0];
+        ? sites.find((s: any) => s.id === selectedSiteId) 
+        : sites[0];
       
       setSite(current || null);
       setLoading(false);
     }, (error) => {
+      console.error("Sites fetch error:", error);
       setLoading(false);
     });
 
     return () => unsubscribeSites();
   }, [user?.uid, selectedSiteId]);
 
-  // 2. Fetch events ONLY for the verified site belonging to the current user
+  // 2. Optimized Event Listener (Strict Site Filter)
   useEffect(() => {
-    // SECURITY WIPE
+    // 🔒 THE MEMORY PURGE: Clear state immediately if site or user changes
     setIssues([]);
     setAuditEvents([]);
 
-    // Check if site exists AND belongs to the current logged-in user
-    if (!site?.id || !user?.uid || site.userId !== user.uid) {
+    if (!site?.id || !user?.uid) {
+      return;
+    }
+
+    // Secondary safety: If this site doesn't belong to the user, block.
+    if (site.userId !== user.uid) {
+      setSite(null);
       return;
     }
 
@@ -79,23 +77,21 @@ function GuardianContent() {
     );
 
     const unsubscribeEvents = onSnapshot(eventsQuery, (snap) => {
-      const allEvents = snap.docs
-        .map(d => ({ id: d.id, ...d.data() } as any))
-        .filter(e => e.siteId === site.id); // Re-verify siteId filter
+      const allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
       
-      const filtered = allEvents.filter((e: any) => 
+      // 🔒 Triple-Check: Re-filter in JS to ensure Firestore didn't slip global data
+      const verifiedEvents = allEvents.filter((e: any) => e.siteId === site.id);
+
+      const filteredIssues = verifiedEvents.filter((e: any) => 
         ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
       );
 
-      const sorted = allEvents.sort((a: any, b: any) => 
+      const sorted = verifiedEvents.sort((a: any, b: any) => 
         (b.occurredAt?.seconds || 0) - (a.occurredAt?.seconds || 0)
       );
 
-      setIssues(filtered);
+      setIssues(filteredIssues);
       setAuditEvents(sorted.slice(0, 20));
-    }, (error) => {
-      setIssues([]);
-      setAuditEvents([]);
     });
 
     return () => unsubscribeEvents();
@@ -113,8 +109,8 @@ function GuardianContent() {
     return (
       <div className="p-8 text-center min-h-screen flex flex-col items-center justify-center">
         <Globe className="mx-auto text-gray-600 mb-4" size={48} />
-        <h1 className="text-2xl font-bold text-white mb-4">Autonomous SEO Guardian</h1>
-        <p className="text-gray-400 mb-8 max-w-sm">No site found for this account. Go to the Overview to connect your first domain.</p>
+        <h1 className="text-2xl font-bold text-white mb-4">Connect a Domain</h1>
+        <p className="text-gray-400 mb-8 max-w-sm">This is a private dashboard. Add your first site in the Overview.</p>
         <button onClick={() => window.location.href = '/dashboard'} className="px-6 py-3 bg-terminal text-black font-bold rounded-xl hover:bg-green-400 transition-all">
           Connect First Site
         </button>
@@ -122,7 +118,6 @@ function GuardianContent() {
     );
   }
 
-  // --- UI Extraction ---
   let keywords = { industry: 'N/A', topic: 'N/A', detailed: [], visibility: '0', authority: '0' };
   if (site?.targetKeywords) { try { keywords = JSON.parse(site.targetKeywords); } catch (e) {} }
 
@@ -140,7 +135,7 @@ function GuardianContent() {
             <h1 className="text-2xl md:text-4xl font-bold text-white font-serif tracking-tight">Mojo Guardian</h1>
           </div>
           <p className="text-sm md:text-base text-gray-400 max-w-xl">
-            Monitoring <span className="text-blue-400 font-mono">{site?.domain}</span> for threats and opportunities.
+            Autonomous SEO monitoring for <span className="text-blue-400 font-mono">{site?.domain}</span>.
           </p>
         </div>
 

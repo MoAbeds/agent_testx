@@ -13,11 +13,11 @@ export default function LandingNavbar() {
         {/* Logo */}
         <div className="flex items-center gap-12">
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-9 h-9 rounded-lg bg-terminal/10 border border-terminal/30 flex items-center justify-center group-hover:bg-terminal/20 transition-colors">
-              <Terminal size={18} className="text-terminal" />
+            <div className="w-10 h-10 flex items-center justify-center transition-transform group-hover:scale-110">
+              <img src="/logo.svg" alt="Mojo Guardian" className="w-full h-full" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-white">
-              Mojo<span className="text-terminal">.</span>
+            <span className="text-xl font-bold tracking-tight text-white font-serif">
+              Mojo <span className="text-terminal">Guardian</span>
             </span>
           </Link>
 

@@ -31,7 +31,6 @@ export async function POST(req: NextRequest) {
     }
 
     if (eventType === 'BILLING.SUBSCRIPTION.ACTIVATED' || eventType === 'BILLING.SUBSCRIPTION.CREATED') {
-      const planName = resource.plan_id; // Mapping would happen here
       await updateUserPlan(userId, 'PRO', subscriptionId);
       console.log(`[PayPal-Webhook] User ${userId} upgraded to PRO.`);
     }

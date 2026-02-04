@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { logEvent } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -15,25 +15,44 @@ export async function POST(req: NextRequest) {
     if (!siteSnap.exists()) return NextResponse.json({ error: 'Site not found' }, { status: 404 });
     const siteData = siteSnap.data();
 
-    const targetUrl = url || `https://${siteData.domain}`;
+    // Ensure we have a valid protocol
+    let targetUrl = url || siteData.domain;
+    if (!targetUrl.startsWith('http')) {
+      targetUrl = `https://${targetUrl}`;
+    }
+
+    console.log(`[Speed-Audit] Testing URL: ${targetUrl}`);
+
     const psiKey = process.env.PAGESPEED_API_KEY;
-    
-    // We'll use the public API if no key is provided
+    // strategy=mobile is standard for Google's mobile-first indexing
     const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(targetUrl)}&strategy=mobile${psiKey ? `&key=${psiKey}` : ''}`;
 
     const res = await fetch(apiUrl);
     const data = await res.json();
 
+    // Detailed error logging for debugging
+    if (data.error) {
+      console.error("[Speed-Audit] Google API Error:", data.error);
+      return NextResponse.json({ 
+        error: `Google API Error: ${data.error.message}`,
+        details: data.error 
+      }, { status: 500 });
+    }
+
     if (!data.lighthouseResult) {
-      return NextResponse.json({ error: 'Audit failed', details: data }, { status: 500 });
+      return NextResponse.json({ error: 'Audit failed: No Lighthouse result returned from Google.' }, { status: 500 });
     }
 
     const lh = data.lighthouseResult;
+    
+    // Defensive score extraction
+    const getScore = (cat: string) => (lh.categories[cat]?.score || 0) * 100;
+
     const scores = {
-      performance: (lh.categories.performance?.score || 0) * 100,
-      accessibility: (lh.categories.accessibility?.score || 0) * 100,
-      bestPractices: (lh.categories['best-practices']?.score || 0) * 100,
-      seo: (lh.categories.seo?.score || 0) * 100,
+      performance: getScore('performance'),
+      accessibility: getScore('accessibility'),
+      bestPractices: getScore('best-practices'),
+      seo: getScore('seo'),
     };
 
     const auditData = {
@@ -48,7 +67,6 @@ export async function POST(req: NextRequest) {
 
     await updateDoc(siteRef, { 
       lastAudit: JSON.stringify(auditData),
-      // Update visibility/authority based on speed too
       visibility: (500 + scores.seo * 5).toString() 
     });
 
@@ -56,6 +74,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, audit: auditData });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[Speed-Audit] Critical Crash:", error.message);
+    return NextResponse.json({ error: `Critical: ${error.message}` }, { status: 500 });
   }
 }

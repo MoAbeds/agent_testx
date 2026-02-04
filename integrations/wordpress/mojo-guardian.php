@@ -164,7 +164,15 @@ class Mojo_Guardian {
     }
 
     public function add_settings_page() {
-        add_menu_page('Mojo Guardian', 'Mojo Guardian', 'manage_options', 'mojo-guardian', array($this, 'render_settings_page'), 'dashicons-shield-alt', 80);
+        add_menu_page(
+            'Mojo Guardian',
+            'Mojo Guardian',
+            'manage_options',
+            'mojo-guardian',
+            array($this, 'render_settings_page'),
+            'https://agenttestx-production-19d6.up.railway.app/wp-icon.svg',
+            80
+        );
     }
 
     public function register_settings() {

@@ -68,11 +68,11 @@ export default function SignupPage() {
 
       {/* Logo */}
       <Link href="/" className="flex items-center gap-3 mb-8 group relative z-10">
-        <div className="w-10 h-10 rounded-lg bg-terminal/10 border border-terminal/30 flex items-center justify-center group-hover:bg-terminal/20 transition-colors">
-          <Terminal size={20} className="text-terminal" />
+        <div className="w-12 h-12 flex items-center justify-center transition-transform group-hover:scale-110">
+          <img src="/logo.svg" alt="Mojo Guardian" className="w-full h-full" />
         </div>
-        <span className="text-2xl font-bold tracking-tight text-white">
-          Mojo<span className="text-terminal">.</span>
+        <span className="text-2xl font-bold tracking-tight text-white font-serif">
+          Mojo <span className="text-terminal">Guardian</span>
         </span>
       </Link>
 

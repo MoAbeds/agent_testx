@@ -1,6 +1,4 @@
-'use client';
-
-import { onAuthStateChanged, User } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
 import { useEffect, useState } from "react";
 import { auth, db } from "./firebase";
 import { doc, onSnapshot } from "firebase/firestore";
@@ -12,47 +10,44 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!auth) return;
+    if (!auth) {
+      console.error("[AuthHook] Auth instance is null. Check Firebase config.");
+      setLoading(false);
+      return;
+    }
 
-    // Safety timeout: If auth takes > 5s, stop loading
-    const timer = setTimeout(() => {
-      if (loading) {
-        console.warn("Auth check timed out.");
-        setLoading(false);
-      }
-    }, 5000);
+    console.log("[AuthHook] Initializing listener...");
 
     const unsubscribe = onAuthStateChanged(auth, (u) => {
-      clearTimeout(timer);
       if (u) {
-        console.log("[AuthHook] Auth detected, fetching profile...");
-        // Listen to user profile in Firestore
+        console.log("[AuthHook] Auth detected:", u.uid);
         const userRef = doc(db, "users", u.uid);
         const unsubscribeProfile = onSnapshot(userRef, (snap) => {
           if (snap.exists()) {
             console.log("[AuthHook] Profile found.");
             setUser({ ...u, ...snap.data() });
           } else {
-            console.log("[AuthHook] Profile missing, using basic user.");
+            console.log("[AuthHook] Profile missing, using basic auth.");
             setUser(u);
           }
           setLoading(false);
         }, (error) => {
-          console.error("[AuthHook] Profile Error:", error);
-          setUser(u); // Fallback to basic auth user
+          console.error("[AuthHook] Firestore Error:", error.message);
+          setUser(u);
           setLoading(false);
         });
+        return () => unsubscribeProfile();
       } else {
-        console.log("[AuthHook] No user found.");
+        console.log("[AuthHook] No user session found.");
         setUser(null);
         setLoading(false);
       }
     }, (error) => {
-      console.error("[AuthHook] Auth State Error:", error);
-      clearTimeout(timer);
+      console.error("[AuthHook] Auth State Error:", error.message);
       setLoading(false);
     });
-    return unsubscribe;
+
+    return () => unsubscribe();
   }, []);
 
   return { user, loading };

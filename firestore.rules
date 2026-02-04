@@ -2,25 +2,36 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // SITES: Critical ownership lock
+    // SITES: The anchor of all security. 
+    // Users can ONLY see sites where they are the owner.
     match /sites/{siteId} {
       allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
     
-    // EVENTS: Server-side API will handle fetching, but prevent global listeners
+    // EVENTS: Locked down by site ownership.
     match /events/{eventId} {
       allow read: if request.auth != null && 
         get(/databases/$(database)/documents/sites/$(resource.data.siteId)).data.userId == request.auth.uid;
       allow create: if true;
     }
 
-    // USERS: Private profile
+    // USERS: Private profile.
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Default for rest: Auth required
+    // PAGES/RULES: Also locked by site owner.
+    match /pages/{docId} { 
+      allow read, write: if request.auth != null && 
+        get(/databases/$(database)/documents/sites/$(resource.data.siteId)).data.userId == request.auth.uid;
+    }
+    match /rules/{docId} { 
+      allow read, write: if request.auth != null && 
+        get(/databases/$(database)/documents/sites/$(resource.data.siteId)).data.userId == request.auth.uid;
+    }
+
+    // Default: Must be logged in.
     match /{document=**} {
       allow read, write: if request.auth != null;
     }

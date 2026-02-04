@@ -42,14 +42,14 @@ function GuardianContent() {
     );
     
     const unsubscribeSites = onSnapshot(sitesQuery, (snap) => {
-      const sites = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const sites = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
       
       // Secondary filter in JS to be 1000% sure
-      const verifiedSites = sites.filter(s => s.userId === user.uid);
+      const verifiedSites = sites.filter((s: any) => s.userId === user.uid);
       setAllSites(verifiedSites);
 
       const current = selectedSiteId 
-        ? verifiedSites.find(s => s.id === selectedSiteId) 
+        ? verifiedSites.find((s: any) => s.id === selectedSiteId) 
         : verifiedSites[0];
       
       setSite(current || null);

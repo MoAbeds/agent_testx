@@ -190,13 +190,15 @@ function GuardianContent() {
             </div>
 
             <div className="bg-black/40 border border-gray-800 rounded-xl overflow-x-auto scrollbar-thin scrollbar-thumb-gray-800">
-              <table className="w-full text-left text-sm min-w-[600px]">
+              <table className="w-full text-left text-sm min-w-[800px]">
                 <thead className="bg-gray-900/50 text-gray-400 uppercase text-[10px] font-bold tracking-widest">
                   <tr>
                     <th className="p-4 whitespace-nowrap">High-Volume Keyword</th>
+                    <th className="p-4 whitespace-nowrap">Volume</th>
+                    <th className="p-4 whitespace-nowrap">Difficulty</th>
+                    <th className="p-4 whitespace-nowrap">Est. CPC</th>
                     <th className="p-4 whitespace-nowrap">Relevance</th>
                     <th className="p-4 whitespace-nowrap hidden md:table-cell">Competition</th>
-                    <th className="p-4 text-right whitespace-nowrap">Est. Monthly Volume</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800/50">
@@ -204,20 +206,30 @@ function GuardianContent() {
                     keywords.detailed.map((kw: any, i: number) => (
                       <tr key={i} className="text-gray-300 hover:bg-white/5 transition-colors">
                         <td className="p-4 font-medium whitespace-nowrap">{kw.keyword}</td>
+                        <td className="p-4 font-mono text-terminal">{Number(kw.results).toLocaleString()}</td>
                         <td className="p-4">
-                          <span className="text-green-500 bg-green-500/10 px-2 py-0.5 rounded text-[10px] font-bold uppercase">
+                          <div className="flex items-center gap-2">
+                            <div className="w-12 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full rounded-full ${Number(kw.difficulty) > 70 ? 'bg-red-500' : Number(kw.difficulty) > 40 ? 'bg-yellow-500' : 'bg-green-500'}`} 
+                                style={{ width: `${kw.difficulty || 0}%` }}
+                              />
+                            </div>
+                            <span className="text-[10px] font-mono text-gray-400">{kw.difficulty || 0}</span>
+                          </div>
+                        </td>
+                        <td className="p-4 font-mono text-gray-400">${Number(kw.cpc || 0).toFixed(2)}</td>
+                        <td className="p-4">
+                          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${kw.relevance === 'Market Match' ? 'text-green-500 bg-green-500/10' : 'text-blue-400 bg-blue-400/10'}`}>
                             {kw.relevance}
                           </span>
                         </td>
-                        <td className="p-4 text-gray-500 hidden md:table-cell">{kw.competition}</td>
-                        <td className="p-4 text-right font-mono text-terminal whitespace-nowrap">
-                          {Number(kw.results).toLocaleString()}
-                        </td>
+                        <td className="p-4 text-gray-500 hidden md:table-cell capitalize">{kw.competition?.toLowerCase().replace('_', ' ')}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={4} className="p-8 text-center text-gray-600 italic">
+                      <td colSpan={6} className="p-8 text-center text-gray-600 italic">
                         No keyword data discovered. Click "Research Site" above.
                       </td>
                     </tr>

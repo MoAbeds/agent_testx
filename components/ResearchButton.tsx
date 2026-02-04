@@ -52,14 +52,14 @@ export default function ResearchButton({ siteId, initialIndustry }: { siteId: st
             value={industry}
             onChange={(e) => setIndustry(e.target.value)}
             placeholder="Describe your industry, product, or specific target niche in detail..."
-            className="w-full bg-black border border-gray-800 rounded-lg p-3 text-xs text-white focus:border-terminal outline-none h-32 mb-4 resize-none leading-relaxed placeholder:text-gray-700"
+            className="w-full bg-black border border-gray-800 rounded-lg p-3 text-xs text-white focus:border-terminal outline-none h-32 mb-4 resize-none leading-relaxed placeholder:text-gray-700 block"
             autoFocus
           />
           
           <button 
             onClick={runResearch}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 bg-terminal hover:bg-green-400 text-black text-[10px] font-black uppercase py-2.5 rounded-lg transition-all disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2 bg-terminal hover:bg-green-400 text-black text-[10px] font-black uppercase py-2.5 rounded-lg transition-all disabled:opacity-50 relative z-[60] shadow-xl"
           >
             {loading ? <RefreshCw className="animate-spin" size={12} /> : <Search size={12} />}
             Analyze & Fetch Keywords

@@ -26,16 +26,20 @@ function GuardianContent() {
 
   const selectedSiteId = searchParams.get('siteId');
 
+  // 1. Fetch only sites that BELONG to this specific user ID
   useEffect(() => {
     if (!user?.uid || !db) return;
 
-    // Reset everything when user changes to prevent cross-account leak
+    // PHYSICAL WIPE on user change
     setAllSites([]);
     setSite(null);
     setIssues([]);
     setAuditEvents([]);
 
-    const sitesQuery = query(collection(db, "sites"), where("userId", "==", user.uid));
+    const sitesQuery = query(
+      collection(db, "sites"), 
+      where("userId", "==", user.uid)
+    );
     
     const unsubscribeSites = onSnapshot(sitesQuery, (snap) => {
       const sites = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -54,40 +58,44 @@ function GuardianContent() {
     return () => unsubscribeSites();
   }, [user?.uid, selectedSiteId]);
 
+  // 2. Fetch events ONLY if the site belongs to the user
   useEffect(() => {
-    // SECURITY: Clear feed immediately whenever site, siteId, or user changes
+    // SECURITY WIPE
     setIssues([]);
     setAuditEvents([]);
 
-    if (!site?.id || !user?.uid) return;
+    if (!site?.id || !user?.uid || site.userId !== user.uid) {
+      return;
+    }
 
-    const fetchEvents = async () => {
-      try {
-        const res = await fetch(`/api/agent/logs?siteId=${site.id}`);
-        const data = await res.json();
-        
-        if (!data.success || !data.events) {
-          setIssues([]);
-          setAuditEvents([]);
-          return;
-        }
+    const eventsQuery = query(
+      collection(db, "events"), 
+      where("siteId", "==", site.id),
+      limit(50)
+    );
 
-        const allEvents = data.events;
-        const filteredIssues = allEvents.filter((e: any) => 
-          ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
-        );
-        
-        setIssues(filteredIssues);
-        setAuditEvents(allEvents.slice(0, 20));
-      } catch (e) {
-        setIssues([]);
-        setAuditEvents([]);
-      }
-    };
+    const unsubscribeEvents = onSnapshot(eventsQuery, (snap) => {
+      const allEvents = snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as any))
+        .filter(e => e.siteId === site.id); // Double manual filter
+      
+      const filtered = allEvents.filter((e: any) => 
+        ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
+      );
 
-    fetchEvents();
-    const interval = setInterval(fetchEvents, 10000); // Faster sync
-    return () => clearInterval(interval);
+      const sorted = allEvents.sort((a: any, b: any) => 
+        (b.occurredAt?.seconds || 0) - (a.occurredAt?.seconds || 0)
+      );
+
+      setIssues(filtered);
+      setAuditEvents(sorted.slice(0, 20));
+    }, (error) => {
+      // If permission denied by Firestore Rules, wipe data
+      setIssues([]);
+      setAuditEvents([]);
+    });
+
+    return () => unsubscribeEvents();
   }, [site?.id, user?.uid]);
 
   if (loading) {
@@ -102,10 +110,10 @@ function GuardianContent() {
     return (
       <div className="p-8 text-center min-h-screen flex flex-col items-center justify-center">
         <Globe className="mx-auto text-gray-600 mb-4" size={48} />
-        <h1 className="text-2xl font-bold text-white mb-4">Connect a Domain</h1>
-        <p className="text-gray-400 mb-8 max-w-sm">No site found for this account. Add your first site in the Overview.</p>
+        <h1 className="text-2xl font-bold text-white mb-4">Mojo Guardian</h1>
+        <p className="text-gray-400 mb-8 max-w-sm">This is a private dashboard. No sites found for this account.</p>
         <button onClick={() => window.location.href = '/dashboard'} className="px-6 py-3 bg-terminal text-black font-bold rounded-xl hover:bg-green-400 transition-all">
-          Add First Site
+          Connect First Site
         </button>
       </div>
     );
@@ -128,7 +136,7 @@ function GuardianContent() {
             <h1 className="text-2xl md:text-4xl font-bold text-white font-serif tracking-tight">Mojo Guardian</h1>
           </div>
           <p className="text-sm md:text-base text-gray-400 max-w-xl">
-            Monitoring <span className="text-blue-400 font-mono">{site?.domain}</span> for threats and opportunities.
+            Monitoring <span className="text-blue-400 font-mono">{site?.domain}</span>.
           </p>
         </div>
 
@@ -139,7 +147,6 @@ function GuardianContent() {
                 <ScanButton domain={site?.domain} apiKey={site?.apiKey} />
               </div>
             </div>
-            
             <div className="flex gap-3">
               <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl px-3 py-2 md:px-4 md:py-3 flex items-center gap-3">
                   <Zap className={Number(audit.scores.performance) > 80 ? "text-terminal" : "text-yellow-500"} size={18} />

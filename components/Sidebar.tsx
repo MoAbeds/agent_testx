@@ -33,8 +33,8 @@ export function Sidebar() {
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-[#0a0a0a] border-b border-gray-800 z-20 flex items-center justify-between px-4">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-terminal rounded-lg flex items-center justify-center font-bold text-black shadow-[0_0_10px_rgba(34,197,94,0.3)] text-xs">M</div>
-          <span className="font-bold text-lg tracking-tight text-white">Mojo</span>
+          <img src="/logo.svg" alt="Mojo" className="w-8 h-8" />
+          <span className="font-bold text-lg tracking-tight text-white">Mojo <span className="text-terminal">Guardian</span></span>
         </div>
         <button 
           onClick={() => setIsOpen(!isOpen)}
@@ -59,8 +59,8 @@ export function Sidebar() {
         lg:translate-x-0 lg:static lg:h-full
       `}>
         <div className="p-6 border-b border-gray-800 hidden lg:flex items-center gap-3">
-          <div className="w-8 h-8 bg-terminal rounded-lg flex items-center justify-center font-bold text-black shadow-[0_0_15px_rgba(34,197,94,0.4)]">M</div>
-          <span className="font-bold text-xl tracking-tight text-white">Mojo</span>
+          <img src="/logo.svg" alt="Mojo" className="w-8 h-8" />
+          <span className="font-bold text-xl tracking-tight text-white">Mojo <span className="text-terminal">Guardian</span></span>
         </div>
         
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">

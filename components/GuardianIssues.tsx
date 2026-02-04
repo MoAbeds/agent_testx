@@ -29,12 +29,12 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
      return items.filter(i => ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(i.type));
   }
 
-  // Sync state when props change (real-time updates from parent)
   useEffect(() => {
     setIssues(issuesFilter(initialIssues));
   }, [initialIssues]);
 
-  const isFreePlan = user?.plan !== 'PRO';
+  // STRICT PLAN CHECK
+  const isFreePlan = !user?.plan || user.plan === 'FREE';
 
   const runSpeedAudit = async () => {
     if (isFreePlan) return setNotification({ message: "PageSpeed audits are a Pro feature.", type: "info" });
@@ -43,14 +43,10 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
       const res = await fetch('/api/audit/speed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ siteId })
+        body: JSON.stringify({ siteId, url: window.location.origin })
       });
       const data = await res.json();
-      if (data.success) {
-        setNotification({ message: "Speed audit complete! Results saved to dashboard.", type: 'success' });
-      } else {
-        setNotification({ message: data.error || "Audit failed.", type: 'error' });
-      }
+      if (data.success) setNotification({ message: "Speed audit complete!", type: 'success' });
     } catch (e) { setNotification({ message: "Audit failed.", type: 'error' }); } finally { setAuditing(false); }
   };
 
@@ -64,9 +60,7 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
         body: JSON.stringify({ siteId })
       });
       const data = await res.json();
-      if (data.success) {
-        setNotification({ message: `Found ${data.opportunitiesFound} link opportunities!`, type: 'success' });
-      }
+      if (data.success) setNotification({ message: `Found ${data.opportunitiesFound} link opportunities!`, type: 'success' });
     } catch (e) { setNotification({ message: "Linking scan failed.", type: 'error' }); } finally { setLinking(false); }
   };
 
@@ -80,11 +74,7 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
         body: JSON.stringify({ siteId })
       });
       const data = await res.json();
-      if (data.success) {
-        setNotification({ message: `Scouted ${data.opportunities} backlink prospects! Check feed.`, type: 'success' });
-      } else {
-        setNotification({ message: data.error || "Scout failed.", type: 'error' });
-      }
+      if (data.success) setNotification({ message: `Scouted ${data.opportunities} backlink prospects!`, type: 'success' });
     } catch (e) { setNotification({ message: "Scout failed.", type: 'error' }); } finally { setScouting(false); }
   };
 
@@ -98,9 +88,7 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
         body: JSON.stringify({ siteId })
       });
       const data = await res.json();
-      if (data.success) {
-        setNotification({ message: `Identified ${data.gapsFound} high-impact content gaps!`, type: 'success' });
-      }
+      if (data.success) setNotification({ message: `Identified ${data.gapsFound} high-impact content gaps!`, type: 'success' });
     } catch (e) { setNotification({ message: "Gap analysis failed.", type: 'error' }); } finally { setGapping(false); }
   };
 
@@ -121,7 +109,7 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
       });
       const data = await res.json();
       if (data.success) {
-        setNotification({ message: `Page "${issue.path}" created and deployed via Mojo Agent!`, type: 'success' });
+        setNotification({ message: `Page "${issue.path}" created and deployed!`, type: 'success' });
         setIssues(prev => prev.filter(i => i.id !== issue.id));
       }
     } catch (e) { setNotification({ message: "Generation failed.", type: 'error' }); } finally { setGenerating(null); }
@@ -130,7 +118,6 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
   const generateReport = async () => {
     if (isFreePlan) return setNotification({ message: "Whitelabel Reports are an Agency feature.", type: "info" });
     setReporting(true);
-    // Simple window.print trigger for now until PDF backend is finished
     setTimeout(() => {
       window.print();
       setNotification({ message: "Report ready!", type: 'success' });

@@ -35,15 +35,12 @@ const handler = NextAuth({
       },
       from: process.env.EMAIL_FROM,
       async sendVerificationRequest({ identifier: email, url, provider }) {
-        console.log(`[NextAuth] Sending magic link to ${email}`);
-        console.log(`[NextAuth] Magic Link URL: ${url}`);
         // Default send verification request behavior continues...
       },
     }),
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
-      console.log(`[NextAuth] SignIn Attempt: ${user.email} via ${account?.provider}`);
       return true;
     },
     async jwt({ token, account, user }) {
@@ -51,7 +48,6 @@ const handler = NextAuth({
         token.id = user.id;
       }
       if (account && account.provider === 'google') {
-        console.log(`[NextAuth] Google Tokens received for: ${token.email}`);
         // We can handle extra token storage here later if needed, 
         // but let's first get the login stable.
       }

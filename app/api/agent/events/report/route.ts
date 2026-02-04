@@ -20,7 +20,6 @@ export async function POST(request: NextRequest) {
     if (siteSnap.empty) return NextResponse.json({ error: 'Invalid API Key' }, { status: 403 });
     const site = { id: siteSnap.docs[0].id, ...siteSnap.docs[0].data() };
 
-    console.log(`[Event-Report] ${type} on ${path} for ${site.id}`);
 
     // 2. Log the event
     await logEvent(site.id, type, path, details);

@@ -25,7 +25,6 @@ export async function POST(request: NextRequest) {
     const deadPages = allPages.filter(p => p.status == 404 || p.status == "404");
     const targetPaths = allPages.filter(p => p.status == 200 || p.status == "200").map(p => p.path);
 
-    console.log(`[Fix-404] Dead: ${deadPages.length}, Targets: ${targetPaths.length}`);
 
     if (deadPages.length === 0) {
       return NextResponse.json({ success: true, message: 'No 404 pages found in the system. Run a scan or visit the broken links on your site first.' });

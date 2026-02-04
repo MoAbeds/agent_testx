@@ -35,7 +35,6 @@ function LoginContent() {
         await setPersistence(auth, browserLocalPersistence);
         const result = await signInWithPopup(auth, provider);
         if (result.user) {
-          console.log("[Auth] Success. Navigating...");
           // HARD NAVIGATE for speed
           window.location.assign('/dashboard');
         }

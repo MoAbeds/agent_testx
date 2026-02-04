@@ -126,7 +126,6 @@ async function triggerWebhooks(siteId: string, eventType: string, payload: any) 
     snapshot.docs.forEach(async (doc) => {
       const webhook = doc.data();
       if (webhook.events.includes(eventType)) {
-        console.log(`[Webhook] Dispatching ${eventType} to ${webhook.url}`);
         fetch(webhook.url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

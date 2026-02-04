@@ -20,7 +20,6 @@ export async function POST(req: NextRequest) {
       targetUrl = `https://${targetUrl}`;
     }
 
-    console.log(`[Speed-Audit] Testing URL: ${targetUrl}`);
 
     const psiKey = process.env.PAGESPEED_API_KEY;
     const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(targetUrl)}&strategy=mobile${psiKey ? `&key=${psiKey}` : ''}`;

@@ -6,7 +6,6 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const { domain, userId } = await request.json();
-    console.log(`[API] Creating site: ${domain} for user: ${userId}`);
 
     if (!domain || !userId) {
       console.error('[API] Missing domain or userId');
@@ -23,9 +22,7 @@ export async function POST(request: NextRequest) {
       .toLowerCase();
 
     // Create the site in Firestore
-    console.log(`[API] Triggering Firestore createSite...`);
     const { id, apiKey } = await createSite(userId, normalizedDomain);
-    console.log(`[API] Site created successfully: ${id}`);
 
     return NextResponse.json({ 
       site: {

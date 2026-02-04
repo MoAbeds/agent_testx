@@ -20,7 +20,6 @@ export async function POST(request: NextRequest) {
     if (siteSnap.empty) return NextResponse.json({ error: 'Invalid API Key' }, { status: 403 });
     const site = { id: siteSnap.docs[0].id, ...siteSnap.docs[0].data() };
 
-    console.log(`[Ingest] Receiving ${pages.length} pages for ${domain}`);
 
     // 2. Clear old issues for a fresh start
     const eventsRef = collection(db, "events");

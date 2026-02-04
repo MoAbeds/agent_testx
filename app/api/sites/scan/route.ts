@@ -86,7 +86,6 @@ export async function POST(request: NextRequest) {
     
     // Trigger WordPress Internal Bridge
     const triggerUrl = `${protocol}://${cleanDomain}/?mojo_action=scrape&key=${site.apiKey}`;
-    console.log(`[Crawler] Triggering internal bridge: ${triggerUrl}`);
     
     try {
       // Use Axios with custom agent to bypass SSL checks for bridge trigger
@@ -125,7 +124,6 @@ export async function POST(request: NextRequest) {
       try {
         const response = await scraper.get(url);
         const status = response.status;
-        console.log(`[Crawler] Fetched ${path} - Status: ${status}`);
         
         if (status === 404) {
           await logEvent(site.id, '404_DETECTED', path, { message: `Broken link found during scan` });

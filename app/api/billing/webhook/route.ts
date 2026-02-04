@@ -17,7 +17,6 @@ export async function POST(req: NextRequest) {
     const eventType = body.event_type;
     const resource = body.resource;
 
-    console.log(`[PayPal-Webhook] Received event: ${eventType}`);
 
     // For subscriptions, the 'custom_id' or 'subscriber.email_address' 
     // is usually used to map to our internal user.
@@ -32,12 +31,10 @@ export async function POST(req: NextRequest) {
 
     if (eventType === 'BILLING.SUBSCRIPTION.ACTIVATED' || eventType === 'BILLING.SUBSCRIPTION.CREATED') {
       await updateUserPlan(userId, 'PRO', subscriptionId);
-      console.log(`[PayPal-Webhook] User ${userId} upgraded to PRO.`);
     }
 
     if (eventType === 'BILLING.SUBSCRIPTION.CANCELLED' || eventType === 'BILLING.SUBSCRIPTION.EXPIRED') {
       await updateUserPlan(userId, 'FREE', subscriptionId);
-      console.log(`[PayPal-Webhook] User ${userId} downgraded to FREE.`);
     }
 
     return NextResponse.json({ success: true });

@@ -16,11 +16,9 @@ export function useAuth() {
       return;
     }
 
-    console.log("[AuthHook] Initializing listener...");
 
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       if (u) {
-        console.log("[AuthHook] Auth detected:", u.uid);
         setUser(u); // SET USER IMMEDIATELY to stop loading state
         setLoading(false); 
 
@@ -28,12 +26,10 @@ export function useAuth() {
         const userRef = doc(db, "users", u.uid);
         onSnapshot(userRef, (snap) => {
           if (snap.exists()) {
-            console.log("[AuthHook] Profile synced.");
             setUser({ ...u, ...snap.data() });
           }
         });
       } else {
-        console.log("[AuthHook] No user session.");
         setUser(null);
         setLoading(false);
       }

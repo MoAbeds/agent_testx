@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ShieldAlert, CheckCircle, ArrowRight, Wand2, RefreshCw, Sparkles } from 'lucide-react';
+import { ShieldAlert, CheckCircle, ArrowRight, Wand2, RefreshCw, Sparkles, Link, Zap } from 'lucide-react';
 import { useAuth } from '@/lib/hooks';
 import Toast from './Toast';
 
@@ -14,21 +14,73 @@ interface Issue {
 
 export default function GuardianIssues({ initialIssues, siteId }: { initialIssues: Issue[], siteId: string }) {
   const { user } = useAuth();
-  const [issues, setIssues] = useState(initialIssues);
+  const [issues, setIssues] = useState(issuesFilter(initialIssues));
   const [loading, setLoading] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
+  const [auditing, setAuditing] = useState(false);
+  const [linking, setLinking] = useState(false);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  function issuesFilter(items: any[]) {
+     return items.filter(i => ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY"].includes(i.type));
+  }
 
   // Sync state when props change (real-time updates from parent)
   useEffect(() => {
-    setIssues(initialIssues);
+    setIssues(issuesFilter(initialIssues));
   }, [initialIssues]);
 
   const isFreePlan = user?.plan !== 'PRO';
 
-  useEffect(() => {
-    console.log("[GuardianIssues] User Plan:", user?.plan, "isFreePlan:", isFreePlan);
-  }, [user?.plan, isFreePlan]);
+  const runSpeedAudit = async () => {
+    if (isFreePlan) {
+      return setNotification({ 
+        message: "PageSpeed audits are a Pro feature. Upgrade to monitor core web vitals.", 
+        type: "info" 
+      });
+    }
+    setAuditing(true);
+    try {
+      const res = await fetch('/api/audit/speed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteId, url: window.location.origin })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNotification({ message: "Speed audit complete! Check visibility stats.", type: 'success' });
+      }
+    } catch (e) {
+      setNotification({ message: "Audit failed.", type: 'error' });
+    } finally {
+      setAuditing(false);
+    }
+  };
+
+  const findLinkOpportunities = async () => {
+    if (isFreePlan) {
+      return setNotification({ 
+        message: "Internal Linking Intelligence requires a Professional plan.", 
+        type: "info" 
+      });
+    }
+    setLinking(true);
+    try {
+      const res = await fetch('/api/seo/internal-links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNotification({ message: `Found ${data.opportunitiesFound} link opportunities!`, type: 'success' });
+      }
+    } catch (e) {
+      setNotification({ message: "Linking scan failed.", type: 'error' });
+    } finally {
+      setLinking(false);
+    }
+  };
 
   const fixAll404s = async () => {
     if (isFreePlan) {
@@ -96,13 +148,29 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-xl font-bold text-gray-100 flex items-center gap-2 font-serif">
           <ShieldAlert className="text-red-500" size={20} />
-          Security & SEO Gaps
+          Autonomous SEO Guardian
         </h2>
         <div className="flex flex-wrap gap-2">
           <button 
+            onClick={runSpeedAudit}
+            disabled={auditing}
+            className="flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-white text-[10px] uppercase font-bold px-3 py-2 rounded-lg transition-all"
+          >
+            {auditing ? <RefreshCw className="animate-spin" size={14} /> : <Zap size={14} className="text-yellow-500" />}
+            Audit Speed
+          </button>
+          <button 
+            onClick={findLinkOpportunities}
+            disabled={linking}
+            className="flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-white text-[10px] uppercase font-bold px-3 py-2 rounded-lg transition-all"
+          >
+            {linking ? <RefreshCw className="animate-spin" size={14} /> : <Link size={14} className="text-blue-500" />}
+            Scan Links
+          </button>
+          <button 
             onClick={fixAll404s}
             disabled={loading || !issues.some(i => i.type === '404_DETECTED')}
-            className="flex items-center justify-center gap-2 bg-terminal hover:bg-green-400 text-black text-[10px] uppercase font-bold px-4 py-2 rounded-lg transition-all disabled:opacity-50"
+            className="flex items-center justify-center gap-2 bg-terminal hover:bg-green-400 text-black text-[10px] uppercase font-bold px-3 py-2 rounded-lg transition-all disabled:opacity-50"
           >
             {loading ? <RefreshCw className="animate-spin" size={14} /> : <Wand2 size={14} />}
             Fix 404s
@@ -110,10 +178,10 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
           <button 
             onClick={fixAllGaps}
             disabled={optimizing || !issues.some(i => i.type === 'SEO_GAP')}
-            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-[10px] uppercase font-bold px-4 py-2 rounded-lg transition-all disabled:opacity-50"
+            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-[10px] uppercase font-bold px-3 py-2 rounded-lg transition-all disabled:opacity-50"
           >
             {optimizing ? <RefreshCw className="animate-spin" size={14} /> : <Sparkles size={14} />}
-            Fix SEO Gaps
+            Fix Gaps
           </button>
         </div>
       </div>
@@ -129,19 +197,21 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
           issues.map((issue) => (
             <div key={issue.id} className="bg-[#0a0a0a] border border-gray-800 rounded-xl p-4 flex items-center justify-between group hover:border-gray-700 transition-all shadow-sm">
               <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-lg ${issue.type === '404_DETECTED' ? 'bg-red-950/30 text-red-500' : 'bg-yellow-950/30 text-yellow-500'}`}>
-                   <ShieldAlert size={20} />
+                <div className={`p-3 rounded-lg ${issue.type === '404_DETECTED' ? 'bg-red-950/30 text-red-500' : issue.type === 'LINK_OPPORTUNITY' ? 'bg-blue-950/30 text-blue-500' : 'bg-yellow-950/30 text-yellow-500'}`}>
+                   {issue.type === 'LINK_OPPORTUNITY' ? <Link size={20} /> : <ShieldAlert size={20} />}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-gray-400">
-                      {issue.type === '404_DETECTED' ? 'Broken Link' : 'SEO Gap'}
+                      {issue.type === '404_DETECTED' ? 'Broken Link' : issue.type === 'LINK_OPPORTUNITY' ? 'Internal Link' : 'SEO Gap'}
                     </span>
                     <span className="text-sm font-mono text-gray-300">{issue.path}</span>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     {issue.type === '404_DETECTED' 
                       ? 'Users are seeing a 404 error page. Redirect recommended.' 
+                      : issue.type === 'LINK_OPPORTUNITY'
+                      ? 'Semantic link opportunity detected to boost authority.'
                       : 'Missing metadata or suboptimal on-page SEO detected.'}
                   </p>
                 </div>

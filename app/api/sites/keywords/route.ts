@@ -76,7 +76,10 @@ Return ONLY JSON: { "industry": "...", "topic": "...", "queries": ["...", "..."]
       } catch (e) {}
     }
 
-    const keywordList = Array.from(rawKeywords).slice(0, 20);
+    const keywordList = Array.from(rawKeywords)
+      .map(kw => kw.replace(/[?¿!¡]/g, '').trim()) // Strip punctuation for DataForSEO
+      .filter(kw => kw.length > 2)
+      .slice(0, 20);
     const detailedKeywords: any[] = [];
 
     // 4. FETCH REAL DATA FROM DATAFORSEO

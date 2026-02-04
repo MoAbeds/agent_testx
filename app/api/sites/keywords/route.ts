@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const { siteId, manualIndustry } = await request.json();
+    const { siteId, manualIndustry, forceSeeds } = await request.json();
 
     if (!siteId) return NextResponse.json({ error: 'siteId is required' }, { status: 400 });
 
@@ -26,45 +26,39 @@ export async function POST(request: NextRequest) {
 
     if (!serperKey) return NextResponse.json({ error: 'Serper API Key not configured' }, { status: 500 });
 
-    // 1. Initial Context via Serper
-    const response = await fetch('https://google.serper.dev/search', {
-      method: 'POST',
-      headers: { 'X-API-KEY': serperKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        q: manualIndustry ? manualIndustry.substring(0, 100) : `site:${site.domain}`,
-        num: 10
-      })
-    });
+    let seeds = forceSeeds || [];
+    let industry = manualIndustry || site.manualIndustry || "General";
+    let topic = site.domain;
 
-    const serperData = await response.json();
-    
-    // 2. AI Analysis - Identify Seeds
-    let analysis;
-    try {
-      const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
-      const analysisPrompt = `Elite SEO AI Prompt Architecture v2.0
+    // 1. If no seeds provided, run AI Analysis
+    if (seeds.length === 0) {
+      try {
+        const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+        const analysisPrompt = `Elite SEO AI Prompt Architecture v2.0
 Identify the 3 most powerful "Core Seed Keywords" for this business.
-STRICTLY PRESERVE the specific industry.
-FOCUS ON: "Service", "Agency", "Expert", "Management".
-
-Description: """${manualIndustry || site.domain}"""
+Industry: ${industry}
+Description: """${site.domain}"""
 Return ONLY JSON: { "seeds": ["seed 1", "seed 2", "seed 3"], "industry": "...", "topic": "..." }`;
 
-      const result = await model.generateContent(analysisPrompt);
-      analysis = JSON.parse(result.response.text().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim());
-    } catch (e) {
-      analysis = { seeds: [manualIndustry || site.domain], industry: "General", topic: manualIndustry || site.domain };
+        const result = await model.generateContent(analysisPrompt);
+        const analysis = JSON.parse(result.response.text().replace(/```json|```/g, '').trim());
+        seeds = analysis.seeds;
+        industry = analysis.industry;
+        topic = analysis.topic;
+      } catch (e) {
+        seeds = [industry];
+      }
     }
 
     const detailedKeywords: any[] = [];
     let dataSource = 'fallback';
 
-    // 3. Parallel DataForSEO Lookup
-    if (dfseoLogin && dfseoPassword && analysis.seeds) {
+    // 2. DataForSEO Lookup with provided seeds
+    if (dfseoLogin && dfseoPassword && seeds.length > 0) {
       const auth = Buffer.from(`${dfseoLogin}:${dfseoPassword}`).toString('base64');
-      const seeds = analysis.seeds.slice(0, 3).map((s: string) => s.replace(/[^a-zA-Z0-9\s]/g, '').trim().substring(0, 60));
+      const sanitizedSeeds = seeds.slice(0, 5).map((s: string) => s.replace(/[^a-zA-Z0-9\s]/g, '').trim().substring(0, 60));
 
-      const requests = seeds.map((seed: string) => 
+      const requests = sanitizedSeeds.map((seed: string) => 
         axios.post('https://api.dataforseo.com/v3/dataforseo_labs/google/keyword_ideas/live', 
           [{ keyword: seed, location_code: 2840, language_code: "en", limit: 15, include_seed: true }],
           { headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'application/json' }, timeout: 15000 }
@@ -77,7 +71,7 @@ Return ONLY JSON: { "seeds": ["seed 1", "seed 2", "seed 3"], "industry": "...", 
         if (task?.status_code === 20000 && task.result?.[0]?.items) {
           task.result[0].items.forEach((item: any) => {
             const data = item.keyword_data;
-            if (!data.keyword.match(/\b(what|how|why|free|templates|course|pdf|salary|job)\b/i)) {
+            if (!data.keyword.match(/\b(what|how|why|free|pdf|salary|job)\b/i)) {
               detailedKeywords.push({
                 keyword: data.keyword,
                 relevance: 'High Intent',
@@ -93,45 +87,22 @@ Return ONLY JSON: { "seeds": ["seed 1", "seed 2", "seed 3"], "industry": "...", 
       if (detailedKeywords.length > 0) dataSource = 'dataforseo_v4';
     }
 
-    // 4. Final Processing & Deduplication
+    // 3. Final Processing
     const finalDetailed = detailedKeywords
       .filter((v, i, a) => a.findIndex(t => t.keyword === v.keyword) === i)
       .sort((a, b) => Number(b.results) - Number(a.results))
-      .slice(0, 15);
+      .slice(0, 20);
 
-    // 5. Elite Authority Calculation (Factor in Competitors)
-    const organicCount = serperData.organic?.length || 0;
-    
-    // Get tracked competitors
-    const compQ = query(collection(db, "events"), where("siteId", "==", siteId), where("type", "==", "COMPETITOR_INTEL"));
-    const compSnap = await getDocs(compQ);
-    const competitorDocs = compSnap.docs.map(d => JSON.parse(d.data().details));
-    
-    const avgCompetitorVisibility = competitorDocs.length > 0 
-      ? competitorDocs.reduce((acc, curr) => acc + (curr.visibilityScore || 0), 0) / competitorDocs.length 
-      : 500; // Baseline
-
-    const myVisibility = 500 + (organicCount * 100) + (finalDetailed.length * 50);
-    
-    // Relative Strength: How do we stack up against the watchlist?
-    const marketShareFactor = myVisibility / (avgCompetitorVisibility || 1);
-    
-    // Base Authority (60) + Keyword Diversity (up to 20) + Performance (up to 10) + Market Position (up to 10)
-    let dynamicAuthority = 60 + (finalDetailed.length * 1.5);
-    
-    if (marketShareFactor > 1.2) dynamicAuthority += 10; // Market Leader
-    else if (marketShareFactor > 0.8) dynamicAuthority += 5; // Strong Contender
-    else dynamicAuthority -= 5; // Underdog
-
-    const finalAuthority = Math.min(98, Math.max(15, Math.round(dynamicAuthority))).toString();
-    const finalVisibility = myVisibility.toString();
+    // Calculate Visibility/Authority
+    const myVisibility = 500 + (finalDetailed.length * 150);
+    const myAuthority = Math.min(98, 60 + (finalDetailed.length * 1.5));
 
     const finalData = {
-      industry: analysis.industry,
-      topic: analysis.topic,
+      industry: industry,
+      topic: topic || seeds[0],
       detailed: finalDetailed,
-      visibility: finalVisibility,
-      authority: finalAuthority,
+      visibility: myVisibility.toString(),
+      authority: myAuthority.toString(),
       source: dataSource,
       updatedAt: new Date().toISOString()
     };
@@ -140,7 +111,7 @@ Return ONLY JSON: { "seeds": ["seed 1", "seed 2", "seed 3"], "industry": "...", 
     return NextResponse.json({ success: true, keywords: finalData });
 
   } catch (error: any) {
-    console.error('Research Critical Error:', error.message);
+    console.error('Research Error:', error.message);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

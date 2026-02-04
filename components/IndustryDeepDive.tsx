@@ -9,7 +9,7 @@ export default function IndustryDeepDive({ siteId }: { siteId: string }) {
   const [loading, setLoading] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [intel, setIntel] = useState<any>(null);
-  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,19 +19,36 @@ export default function IndustryDeepDive({ siteId }: { siteId: string }) {
 
     setLoading(true);
     try {
+      // 1. Process with AI Brain
       const res = await fetch('/api/seo/deep-dive', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ siteId, description })
       });
       const data = await res.json();
+      
       if (data.success) {
         setIntel(data.intel);
-        setCompleted(true);
-        setNotification({ message: "Mojo Brain has mapped your industry!", type: 'success' });
+        setNotification({ message: "Brain Analysis complete. Triggering SEO Data-Sync...", type: 'info' });
+
+        // 2. Push to Keywords API to get volumes for the new seeds
+        const keywordRes = await fetch('/api/sites/keywords', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            siteId, 
+            manualIndustry: data.intel.industry,
+            forceSeeds: data.intel.seeds 
+          })
+        });
+        
+        if (keywordRes.ok) {
+          setCompleted(true);
+          setNotification({ message: "Market Intelligence updated with high-volume keywords!", type: 'success' });
+        }
       }
     } catch (e) {
-      setNotification({ message: "Analysis failed.", type: 'error' });
+      setNotification({ message: "Cognitive sync failed.", type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -50,19 +67,19 @@ export default function IndustryDeepDive({ siteId }: { siteId: string }) {
           </div>
           <div>
             <h2 className="text-lg font-bold text-white font-serif">Industry Deep-Dive</h2>
-            <p className="text-[10px] uppercase tracking-widest text-indigo-400 font-bold">Mojo Cognitive Engine</p>
+            <p className="text-[10px] uppercase tracking-widest text-indigo-400 font-bold">Autonomous Sync Enabled</p>
           </div>
         </div>
 
         {!completed ? (
           <form onSubmit={handleSubmit} className="space-y-4">
             <p className="text-xs text-gray-400 leading-relaxed">
-              Tell Mojo exactly what this website is about. Mention your primary service, target audience, and unique value proposition.
+              Describe your business. Mojo will extract strategic seeds and instantly pull search volume data from the SEO APIs.
             </p>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g. We are a boutique Real Estate agency in Miami focusing on high-end luxury condos for international investors..."
+              placeholder="e.g. We are a boutique Real Estate agency in Miami focusing on high-end luxury condos..."
               className="w-full bg-black/50 border border-gray-800 rounded-xl p-4 text-sm text-gray-300 focus:border-indigo-500 outline-none transition-all h-32 scrollbar-thin"
             />
             <button
@@ -70,44 +87,33 @@ export default function IndustryDeepDive({ siteId }: { siteId: string }) {
               disabled={loading}
               className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-widest disabled:opacity-50"
             >
-              {loading ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
-              Initialize Brain Analysis
+              {loading ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
+              Initialize & Sync Market Data
             </button>
           </form>
         ) : (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-white/5 rounded-xl p-3 border border-white/5">
-                <span className="text-[8px] uppercase text-indigo-400 font-bold block mb-1">Mapped Industry</span>
+                <span className="text-[8px] uppercase text-indigo-400 font-bold block mb-1">Detected Industry</span>
                 <span className="text-sm font-bold text-white capitalize">{intel.industry}</span>
               </div>
               <div className="bg-white/5 rounded-xl p-3 border border-white/5">
-                <span className="text-[8px] uppercase text-indigo-400 font-bold block mb-1">Market Intent</span>
-                <span className="text-sm font-bold text-terminal">{intel.intent}</span>
-              </div>
-            </div>
-
-            <div>
-              <span className="text-[8px] uppercase text-gray-500 font-bold block mb-2 tracking-widest">Power Seeds Identified</span>
-              <div className="flex flex-wrap gap-2">
-                {intel.seeds?.map((seed: string, i: number) => (
-                  <span key={i} className="text-[10px] font-mono bg-indigo-500/10 text-indigo-300 px-2 py-1 rounded-lg border border-indigo-500/20">
-                    {seed}
-                  </span>
-                ))}
+                <span className="text-[8px] uppercase text-indigo-400 font-bold block mb-1">Sync Status</span>
+                <span className="text-sm font-bold text-terminal font-mono uppercase">Live</span>
               </div>
             </div>
 
             <div className="flex items-center gap-2 p-3 bg-green-500/5 border border-green-500/20 rounded-xl text-green-400">
               <CheckCircle2 size={16} />
-              <span className="text-[10px] font-bold uppercase tracking-wide">Analysis complete. SEO API re-calibrated.</span>
+              <span className="text-[10px] font-bold uppercase tracking-wide">Cognitive Loop Finished. Market Intelligence Populated.</span>
             </div>
 
             <button 
               onClick={() => setCompleted(false)}
               className="text-[10px] text-gray-500 hover:text-white uppercase font-bold tracking-widest"
             >
-              Update Description
+              Update Blueprint
             </button>
           </div>
         )}

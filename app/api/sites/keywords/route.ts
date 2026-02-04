@@ -77,8 +77,8 @@ Return ONLY JSON: { "industry": "...", "topic": "...", "queries": ["...", "..."]
     }
 
     const keywordList = Array.from(rawKeywords)
-      .map(kw => kw.replace(/[^a-zA-Z0-9\s]/g, '').trim()) // Strip ALL non-alphanumeric chars except spaces
-      .filter(kw => kw.length > 2)
+      .map(kw => kw.replace(/[^a-zA-Z0-9\s]/g, '').trim()) // Strip ALL non-alphanumeric chars
+      .filter(kw => kw.length > 2 && kw.length <= 60) // Enforce DataForSEO char limit (60-80 typical)
       .slice(0, 20);
     const detailedKeywords: any[] = [];
 

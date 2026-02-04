@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ShieldAlert, CheckCircle, ArrowRight, Wand2, RefreshCw, Sparkles } from 'lucide-react';
+import { useAuth } from '@/lib/hooks';
 import Toast from './Toast';
 
 interface Issue {

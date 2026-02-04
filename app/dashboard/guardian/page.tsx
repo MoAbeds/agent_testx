@@ -7,6 +7,7 @@ import AddKeywordButton from '@/components/AddKeywordButton';
 import SiteManager from '@/components/SiteManager';
 import ScanButton from '@/components/ScanButton';
 import CompetitorWatchlist from '@/components/CompetitorWatchlist';
+import IndustryDeepDive from '@/components/IndustryDeepDive';
 import { Shield, Target, Search, Sparkles, Loader2, Zap, Globe } from 'lucide-react';
 import { useAuth } from '@/lib/hooks';
 import { db } from '@/lib/firebase';
@@ -259,6 +260,7 @@ function GuardianContent() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         <div className="lg:col-span-2 space-y-10">
+          <IndustryDeepDive siteId={site.id} />
           <GuardianIssues initialIssues={issues} siteId={site.id} />
           <CompetitorWatchlist siteId={site.id} />
         </div>

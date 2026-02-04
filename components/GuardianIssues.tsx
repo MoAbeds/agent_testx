@@ -186,9 +186,21 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
                   </p>
                 </div>
               </div>
-              <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-gray-500 hover:text-terminal">
-                <ArrowRight size={18} />
-              </button>
+              <div className="flex items-center gap-2">
+                {issue.type === 'CONTENT_GAP' && (
+                  <button 
+                    onClick={() => generatePage(issue)}
+                    disabled={generating === issue.id}
+                    className="flex items-center gap-1.5 bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
+                  >
+                    {generating === issue.id ? <RefreshCw className="animate-spin" size={12} /> : <PenTool size={12} />}
+                    Draft Page
+                  </button>
+                )}
+                <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-gray-500 hover:text-terminal">
+                  <ArrowRight size={18} />
+                </button>
+              </div>
             </div>
           ))
         )}

@@ -77,7 +77,11 @@ Return ONLY a JSON object: {
       try {
         const auth = Buffer.from(`${dfseoLogin}:${dfseoPassword}`).toString('base64');
         
-        for (const seed of analysis.seeds.slice(0, 3)) {
+        for (const rawSeed of analysis.seeds.slice(0, 3)) {
+          // Sanitize and cap seed length for DataForSEO compatibility
+          const seed = rawSeed.replace(/[^a-zA-Z0-9\s]/g, '').trim().substring(0, 60);
+          if (seed.length < 3) continue;
+
           console.log(`[DataForSEO-Labs] Expanding seed: ${seed}`);
           const dfRes = await axios.post('https://api.dataforseo.com/v3/dataforseo_labs/google/keyword_ideas/live', 
             [{

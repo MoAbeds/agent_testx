@@ -12,11 +12,11 @@ export default function Footer() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           {/* Logo & Copyright */}
           <div className="flex items-center gap-4">
-            <div className="w-8 h-8 rounded-lg bg-terminal/10 border border-terminal/30 flex items-center justify-center">
-              <Terminal size={16} className="text-terminal" />
+            <div className="w-8 h-8 flex items-center justify-center">
+              <img src="/logo.svg" alt="Mojo Guardian" className="w-full h-full" />
             </div>
-            <div className="text-sm text-gray-600">
-              © {currentYear} Mojo. All rights reserved.
+            <div className="text-sm text-gray-600 font-serif">
+              © {currentYear} <span className="text-gray-400 font-bold">Mojo Guardian</span>. Autonomous SEO infrastructure.
             </div>
           </div>
 

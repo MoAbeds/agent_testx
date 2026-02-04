@@ -7,7 +7,7 @@ import AddKeywordButton from '@/components/AddKeywordButton';
 import SiteManager from '@/components/SiteManager';
 import ScanButton from '@/components/ScanButton';
 import CompetitorWatchlist from '@/components/CompetitorWatchlist';
-import { Shield, Target, Search, Sparkles, Loader2, Globe } from 'lucide-react';
+import { Shield, Target, Search, Sparkles, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/hooks';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';

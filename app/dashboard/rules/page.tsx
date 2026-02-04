@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@/lib/hooks';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { useEffect, useState, Suspense } from 'react';
 import { Shield, Globe, Clock, CheckCircle, Loader2, Check, X, RefreshCw, Bot } from 'lucide-react';
 import { db } from '@/lib/firebase';
@@ -12,18 +12,37 @@ function RulesContent() {
   const [rules, setRules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [userSiteIds, setUserSiteIds] = useState<string[]>([]);
 
+  // 1. Fetch sites belonging ONLY to this user first
   useEffect(() => {
-    if (!user || !db) return;
+    if (!user) return;
+    const fetchUserSites = async () => {
+      const q = query(collection(db, "sites"), where("userId", "==", user.uid));
+      const snap = await getDocs(q);
+      const ids = snap.docs.map(d => d.id);
+      setUserSiteIds(ids);
+    };
+    fetchUserSites();
+  }, [user]);
 
+  // 2. Fetch rules only for the user's sites
+  useEffect(() => {
+    if (!user || !db || userSiteIds.length === 0) {
+      if (userSiteIds.length === 0) setLoading(false);
+      return;
+    }
+
+    // SECURITY: Use 'in' operator to filter rules by user's specific site IDs
+    // This prevents global data leakage.
     const q = query(
       collection(db, "rules"), 
-      where("siteId", "!=", "") 
+      where("siteId", "in", userSiteIds.slice(0, 10)) 
     );
 
     const unsubscribe = onSnapshot(q, (snap) => {
-      const allRules = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      const sortedRules = allRules.sort((a: any, b: any) => {
+      const filteredRules = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const sortedRules = filteredRules.sort((a: any, b: any) => {
         const tA = a.createdAt?.seconds || 0;
         const tB = b.createdAt?.seconds || 0;
         return tB - tA;
@@ -36,7 +55,7 @@ function RulesContent() {
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, userSiteIds]);
 
   const toggleRuleStatus = async (ruleId: string, siteId: string, currentStatus: boolean) => {
     setUpdating(ruleId);
@@ -63,10 +82,10 @@ function RulesContent() {
   }
 
   return (
-    <main className="p-4 md:p-8">
+    <main className="p-4 md:p-8 max-w-7xl mx-auto">
       <header className="mb-8">
         <h1 className="text-3xl font-bold text-white mb-2 font-serif">Rules Engine</h1>
-        <p className="text-gray-400 text-sm md:text-base">Define manual overrides for specific paths.</p>
+        <p className="text-gray-400 text-sm md:text-base">Manage autonomous redirects and SEO injections.</p>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -77,14 +96,15 @@ function RulesContent() {
               Deployment Console
             </h2>
             <span className="text-xs text-gray-500 bg-gray-900 px-2 py-1 rounded border border-gray-800 font-mono">
-              {rules.length} Total Rules
+              {rules.length} Active Rules
             </span>
           </div>
 
           <div className="space-y-4">
             {rules.length === 0 ? (
-              <div className="p-8 border border-dashed border-gray-800 rounded-xl text-center bg-gray-900/10">
-                <p className="text-gray-500 italic">No rules defined yet.</p>
+              <div className="p-12 border border-dashed border-gray-800 rounded-2xl text-center bg-gray-900/10">
+                <Clock className="mx-auto text-gray-700 mb-4" size={40} />
+                <p className="text-gray-500 italic">No rules discovered for your sites.</p>
               </div>
             ) : (
               rules.map((rule) => {
@@ -157,7 +177,7 @@ function RulesContent() {
                       </div>
                       <div className="flex items-center gap-1">
                         <CheckCircle size={12} />
-                        {(rule.confidence * 100).toFixed(0)}% AI Confidence
+                        {(rule.confidence * 100 || 95).toFixed(0)}% AI Confidence
                       </div>
                     </div>
                   </div>

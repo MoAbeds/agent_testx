@@ -55,9 +55,11 @@ function GuardianContent() {
 
   // 2. Fetch events via API instead of direct Firestore to guarantee server-side filtering
   useEffect(() => {
+    // SECURITY: Clear feed immediately whenever site, siteId, or user changes
+    setIssues([]);
+    setAuditEvents([]);
+
     if (!site?.id || !user) {
-      setIssues([]);
-      setAuditEvents([]);
       return;
     }
 
@@ -65,19 +67,31 @@ function GuardianContent() {
       try {
         const res = await fetch(`/api/agent/logs?siteId=${site.id}`);
         const data = await res.json();
+        
+        // SECURITY: If the API returned an error or domain mismatch, wipe state
+        if (!data.events) {
+          setIssues([]);
+          setAuditEvents([]);
+          return;
+        }
+
         const allEvents = data.events || [];
 
         // Filter for Issues
         const filteredIssues = allEvents.filter((e: any) => 
           ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
         );
+        
         setIssues(filteredIssues);
         setAuditEvents(allEvents.slice(0, 20));
-      } catch (e) {}
+      } catch (e) {
+        setIssues([]);
+        setAuditEvents([]);
+      }
     };
 
     fetchEvents();
-    // Re-fetch every 30 seconds for "Live" feel without the risk of global listener leak
+    // Re-fetch every 30 seconds for "Live" feel
     const interval = setInterval(fetchEvents, 30000);
     return () => clearInterval(interval);
   }, [site?.id, user?.uid]);
@@ -106,7 +120,6 @@ function GuardianContent() {
     );
   }
 
-  // Rest of the UI remains the same...
   let keywords = { industry: 'N/A', topic: 'N/A', detailed: [], visibility: '0', authority: '0' };
   if (site?.targetKeywords) {
     try {

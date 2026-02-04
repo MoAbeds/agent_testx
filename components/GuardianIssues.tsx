@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ShieldAlert, CheckCircle, ArrowRight, Wand2, RefreshCw, Sparkles, Link, Zap, BookOpen, Anchor } from 'lucide-react';
+import { ShieldAlert, CheckCircle, ArrowRight, Wand2, RefreshCw, Sparkles, Link, Zap, BookOpen, Anchor, PenTool } from 'lucide-react';
 import { useAuth } from '@/lib/hooks';
 import Toast from './Toast';
 
@@ -21,6 +21,7 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
   const [linking, setLinking] = useState(false);
   const [scouting, setScouting] = useState(false);
   const [gapping, setGapping] = useState(false);
+  const [generating, setGenerating] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   function issuesFilter(items: any[]) {
@@ -88,6 +89,29 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
       const data = await res.json();
       if (data.success) setNotification({ message: `Identified ${data.gapsFound} high-impact content gaps!`, type: 'success' });
     } catch (e) { setNotification({ message: "Gap analysis failed.", type: 'error' }); } finally { setGapping(false); }
+  };
+
+  const generatePage = async (issue: any) => {
+    if (isFreePlan) return setNotification({ message: "Content Generation is a Pro feature.", type: "info" });
+    const details = JSON.parse(issue.details || '{}');
+    setGenerating(issue.id);
+    try {
+      const res = await fetch('/api/seo/generate-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          siteId, 
+          topic: details.topic, 
+          targetKeyword: details.targetKeyword,
+          suggestedPath: issue.path
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNotification({ message: `Page "${issue.path}" created and deployed via Mojo Agent!`, type: 'success' });
+        setIssues(issues.filter(i => i.id !== issue.id));
+      }
+    } catch (e) { setNotification({ message: "Generation failed.", type: 'error' }); } finally { setGenerating(null); }
   };
 
   const fixAll404s = async () => {
@@ -186,11 +210,12 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
                   </p>
                 </div>
               </div>
+              
               <div className="flex items-center gap-2">
                 {issue.type === 'CONTENT_GAP' && (
                   <button 
                     onClick={() => generatePage(issue)}
-                    disabled={generating === issue.id}
+                    disabled={!!generating}
                     className="flex items-center gap-1.5 bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
                   >
                     {generating === issue.id ? <RefreshCw className="animate-spin" size={12} /> : <PenTool size={12} />}

@@ -43,10 +43,14 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
       const res = await fetch('/api/audit/speed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ siteId, url: window.location.origin })
+        body: JSON.stringify({ siteId })
       });
       const data = await res.json();
-      if (data.success) setNotification({ message: "Speed audit complete!", type: 'success' });
+      if (data.success) {
+        setNotification({ message: "Speed audit complete! Results saved to dashboard.", type: 'success' });
+      } else {
+        setNotification({ message: data.error || "Audit failed.", type: 'error' });
+      }
     } catch (e) { setNotification({ message: "Audit failed.", type: 'error' }); } finally { setAuditing(false); }
   };
 
@@ -60,7 +64,9 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
         body: JSON.stringify({ siteId })
       });
       const data = await res.json();
-      if (data.success) setNotification({ message: `Found ${data.opportunitiesFound} link opportunities!`, type: 'success' });
+      if (data.success) {
+        setNotification({ message: `Found ${data.opportunitiesFound} link opportunities!`, type: 'success' });
+      }
     } catch (e) { setNotification({ message: "Linking scan failed.", type: 'error' }); } finally { setLinking(false); }
   };
 
@@ -74,7 +80,11 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
         body: JSON.stringify({ siteId })
       });
       const data = await res.json();
-      if (data.success) setNotification({ message: `Scouted ${data.opportunities} backlink prospects!`, type: 'success' });
+      if (data.success) {
+        setNotification({ message: `Scouted ${data.opportunities} backlink prospects! Check feed.`, type: 'success' });
+      } else {
+        setNotification({ message: data.error || "Scout failed.", type: 'error' });
+      }
     } catch (e) { setNotification({ message: "Scout failed.", type: 'error' }); } finally { setScouting(false); }
   };
 
@@ -88,7 +98,9 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
         body: JSON.stringify({ siteId })
       });
       const data = await res.json();
-      if (data.success) setNotification({ message: `Identified ${data.gapsFound} high-impact content gaps!`, type: 'success' });
+      if (data.success) {
+        setNotification({ message: `Identified ${data.gapsFound} high-impact content gaps!`, type: 'success' });
+      }
     } catch (e) { setNotification({ message: "Gap analysis failed.", type: 'error' }); } finally { setGapping(false); }
   };
 
@@ -110,7 +122,7 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
       const data = await res.json();
       if (data.success) {
         setNotification({ message: `Page "${issue.path}" created and deployed via Mojo Agent!`, type: 'success' });
-        setIssues(issues.filter(i => i.id !== issue.id));
+        setIssues(prev => prev.filter(i => i.id !== issue.id));
       }
     } catch (e) { setNotification({ message: "Generation failed.", type: 'error' }); } finally { setGenerating(null); }
   };
@@ -118,10 +130,12 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
   const generateReport = async () => {
     if (isFreePlan) return setNotification({ message: "Whitelabel Reports are an Agency feature.", type: "info" });
     setReporting(true);
+    // Simple window.print trigger for now until PDF backend is finished
     setTimeout(() => {
-      setNotification({ message: "Whitelabel report generated and ready for download!", type: 'success' });
+      window.print();
+      setNotification({ message: "Report ready!", type: 'success' });
       setReporting(false);
-    }, 2000);
+    }, 1000);
   };
 
   const fixAll404s = async () => {
@@ -132,7 +146,7 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
       const data = await res.json();
       if (data.success) {
         setNotification({ message: `Success! Auto-fixed broken links.`, type: 'success' });
-        setIssues(issues.filter(i => i.type !== '404_DETECTED'));
+        setIssues(prev => prev.filter(i => i.type !== '404_DETECTED'));
       }
     } catch (e) { setNotification({ message: "Network error.", type: 'error' }); } finally { setLoading(false); }
   };
@@ -145,7 +159,7 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
       const data = await res.json();
       if (data.success) {
         setNotification({ message: `Successfully optimized pages!`, type: 'success' });
-        setIssues(issues.filter(i => i.type !== 'SEO_GAP'));
+        setIssues(prev => prev.filter(i => i.type !== 'SEO_GAP'));
       }
     } catch (e) { setNotification({ message: "Bulk optimization failed.", type: 'error' }); } finally { setOptimizing(false); }
   };
@@ -210,14 +224,14 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
                     issue.type === 'BACKLINK_OPPORTUNITY' ? <Anchor size={20} /> :
                     <ShieldAlert size={20} />}
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-gray-400">
+                <div className="overflow-hidden">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-gray-400 whitespace-nowrap">
                       {issue.type.replace('_', ' ')}
                     </span>
-                    <span className="text-sm font-mono text-gray-300 truncate max-w-[200px]">{issue.path}</span>
+                    <span className="text-xs font-mono text-gray-300 truncate">{issue.path}</span>
                   </div>
-                  <p className="text-[11px] text-gray-500 mt-1">
+                  <p className="text-[11px] text-gray-500 line-clamp-1">
                     {issue.type === 'CONTENT_GAP' ? 'AI identified a high-traffic topic missing from your site.' :
                      issue.type === 'BACKLINK_OPPORTUNITY' ? 'Source linking to your competitor found. Outreach recommended.' :
                      'Actionable SEO item detected.'}
@@ -225,7 +239,7 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
                 </div>
               </div>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 {issue.type === 'CONTENT_GAP' && (
                   <button 
                     onClick={() => generatePage(issue)}

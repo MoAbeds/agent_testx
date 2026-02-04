@@ -138,6 +138,18 @@ function RulesContent() {
                       </div>
                     </div>
 
+                    {payload.reasoning && (
+                      <div className="mt-3 p-3 bg-blue-500/5 border border-blue-500/10 rounded-lg">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Bot size={12} className="text-blue-400" />
+                          <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">AI Strategic Reasoning</span>
+                        </div>
+                        <p className="text-[11px] text-gray-400 leading-relaxed italic">
+                          {payload.reasoning}
+                        </p>
+                      </div>
+                    )}
+
                     <div className="mt-3 flex items-center gap-4 text-[10px] font-bold uppercase tracking-tighter text-gray-600">
                       <div className="flex items-center gap-1">
                         <Clock size={12} />

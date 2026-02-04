@@ -14,20 +14,17 @@ interface Event {
 }
 
 export default function AuditFeed({ initialEvents, siteId }: { initialEvents: Event[], siteId: string }) {
-  const { user } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [undoing, setUndoing] = useState<string | null>(null);
 
   // Sync state when props change
   useEffect(() => {
-    // SECURITY: If siteId changes, IMMEDIATELY wipe previous events from state
-    // to prevent "Ghosting" from the previous account/site.
-    setEvents([]); 
-
-    if (initialEvents && initialEvents.length > 0) {
-      // Secondary safety filter: ensure every event in the feed matches the current siteId
+    // 🔒 THE ULTIMATE GUARD: Never allow data into state if it doesn't match the current siteId
+    if (initialEvents && siteId) {
       const filtered = initialEvents.filter(e => e.siteId === siteId);
       setEvents(filtered);
+    } else {
+      setEvents([]);
     }
   }, [initialEvents, siteId]);
 
@@ -62,20 +59,19 @@ export default function AuditFeed({ initialEvents, siteId }: { initialEvents: Ev
           <History size={16} className="text-gray-400" />
           Audit Trail
         </h3>
-        <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Secure Feed</span>
+        <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Secure</span>
       </div>
 
       <div className="divide-y divide-gray-800/50 max-h-[500px] overflow-y-auto">
         {events.length === 0 ? (
           <div className="p-8 text-center text-gray-600 text-sm italic">
-            No actions recorded for this site ID.
+            No events found for this site.
           </div>
         ) : (
           events.map((event) => {
             const isAutoFix = event.type === 'AUTO_FIX';
             const isUndo = event.type === 'UNDO_ACTION';
             
-            // Safe date parsing
             let time = '--:--';
             try {
               const date = event.occurredAt?.toDate ? event.occurredAt.toDate() : new Date(event.occurredAt);
@@ -95,10 +91,10 @@ export default function AuditFeed({ initialEvents, siteId }: { initialEvents: Ev
                       }`}>
                         {event.type.replace('_', ' ')}
                       </span>
-                      <span className="text-xs font-mono text-gray-300 truncate max-w-[100px]">{event.path}</span>
+                      <span className="text-xs font-mono text-gray-400 truncate max-w-[100px]">{event.path}</span>
                     </div>
                     <p className="text-xs text-gray-500">
-                      {event.details ? (JSON.parse(event.details).message || 'Action processed') : 'Action processed'}
+                      {event.details ? (JSON.parse(event.details).message || 'Processed') : 'Processed'}
                     </p>
                   </div>
                 </div>

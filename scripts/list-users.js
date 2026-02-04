@@ -9,17 +9,13 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 async function listUsers() {
-  console.log("📋 Listing all users in Firestore...");
+  console.log("👥 LISTING ALL USERS IN FIRESTORE:");
   const usersRef = db.collection('users');
-  const snapshot = await usersRef.get();
-
-  if (snapshot.empty) {
-    console.log("❌ No users found in collection 'users'.");
-    return;
-  }
-
-  snapshot.forEach(doc => {
-    console.log(`- [${doc.id}] Plan: ${doc.data().plan || 'FREE'} | Email: ${doc.data().email || 'No Email'}`);
+  const snap = await usersRef.get();
+  
+  snap.forEach(doc => {
+    const data = doc.data();
+    console.log(`- UID: ${doc.id} | Email: ${data.email} | Plan: ${data.plan}`);
   });
 }
 

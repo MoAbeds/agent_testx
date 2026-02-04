@@ -2,41 +2,38 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // 1. SITES: Must be the owner to read/write.
+    // --- SITES ---
+    // User can ONLY see their own sites.
     match /sites/{siteId} {
       allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
     
-    // 2. EVENTS: This is the source of the leak. 
-    // WE MUST ONLY ALLOW READ IF THE QUERY INCLUDES A WHERE(siteId == ...) filter
-    // AND that site belongs to the user.
+    // --- EVENTS ---
+    // Fixed: Ensure the query filter 'siteId' matches an owned site
     match /events/{eventId} {
       allow read: if request.auth != null && 
-        resource.data.siteId != null &&
-        get(/databases/$(database)/documents/sites/$(resource.data.siteId)).data.userId == request.auth.uid;
+        (resource == null || get(/databases/$(database)/documents/sites/$(resource.data.siteId)).data.userId == request.auth.uid);
       
-      allow create: if true; // Agent reporting
+      allow create: if true; 
+      allow update, delete: if request.auth != null && 
+        get(/databases/$(database)/documents/sites/$(resource.data.siteId)).data.userId == request.auth.uid;
     }
 
-    // 3. USERS: Private profiles
+    // --- USERS ---
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // 4. PAGES & RULES: Locked to site owner
+    // Default for rest: Locked to owner via the site link
     match /pages/{docId} { 
       allow read, write: if request.auth != null && 
         get(/databases/$(database)/documents/sites/$(resource.data.siteId)).data.userId == request.auth.uid;
     }
+    
     match /rules/{docId} { 
       allow read, write: if request.auth != null && 
         get(/databases/$(database)/documents/sites/$(resource.data.siteId)).data.userId == request.auth.uid;
-    }
-
-    // 5. BLOCK EVERYTHING ELSE
-    match /{document=**} {
-      allow read, write: if false;
     }
   }
 }

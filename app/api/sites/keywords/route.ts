@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { logEvent } from '@/lib/db';
 import axios from 'axios';
@@ -37,17 +37,15 @@ export async function POST(request: NextRequest) {
     });
 
     const serperData = await response.json();
-    const snippets = serperData.organic?.map((r: any) => `${r.title}: ${r.snippet}`).join('\n') || '';
     
-    // 2. AI Analysis - Identify 3 High-Intent Seeds preserving Industry
+    // 2. AI Analysis - Identify Seeds
     let analysis;
     try {
       const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
       const analysisPrompt = `Elite SEO AI Prompt Architecture v2.0
 Identify the 3 most powerful "Core Seed Keywords" for this business.
-STRICTLY PRESERVE the specific industry (e.g. if it's Real Estate, keep 'Real Estate').
+STRICTLY PRESERVE the specific industry.
 FOCUS ON: "Service", "Agency", "Expert", "Management".
-IGNORE: "What is", "Free", "Templates".
 
 Description: """${manualIndustry || site.domain}"""
 Return ONLY JSON: { "seeds": ["seed 1", "seed 2", "seed 3"], "industry": "...", "topic": "..." }`;
@@ -95,45 +93,45 @@ Return ONLY JSON: { "seeds": ["seed 1", "seed 2", "seed 3"], "industry": "...", 
       if (detailedKeywords.length > 0) dataSource = 'dataforseo_v4';
     }
 
-    // 4. Final Processing
+    // 4. Final Processing & Deduplication
     const finalDetailed = detailedKeywords
       .filter((v, i, a) => a.findIndex(t => t.keyword === v.keyword) === i)
       .sort((a, b) => Number(b.results) - Number(a.results))
       .slice(0, 15);
 
-    console.log(`[Research] Finalized ${finalDetailed.length} keywords for ${site.domain}`);
-
-    // If still 0, fallback to simple Serper keywords
-    if (finalDetailed.length === 0) {
-      const d = await (await fetch('https://google.serper.dev/search', {
-        method: 'POST',
-        headers: { 'X-API-KEY': serperKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ q: analysis.topic })
-      })).json();
-      
-      (d.relatedSearches || []).slice(0, 10).forEach((s: any) => {
-        finalDetailed.push({
-          keyword: s.query,
-          relevance: 'Estimated',
-          competition: 'Market-Driven',
-          results: '1200',
-          cpc: 0,
-          difficulty: 30
-        });
-      });
-    }
-
-    // Calculate Scores
+    // 5. Elite Authority Calculation (Factor in Competitors)
     const organicCount = serperData.organic?.length || 0;
-    const calculatedVisibility = (500 + (organicCount * 100) + (finalDetailed.length * 50)).toString();
-    const calculatedAuthority = (Math.min(95, 60 + (finalDetailed.length * 2))).toString();
+    
+    // Get tracked competitors
+    const compQ = query(collection(db, "events"), where("siteId", "==", siteId), where("type", "==", "COMPETITOR_INTEL"));
+    const compSnap = await getDocs(compQ);
+    const competitorDocs = compSnap.docs.map(d => JSON.parse(d.data().details));
+    
+    const avgCompetitorVisibility = competitorDocs.length > 0 
+      ? competitorDocs.reduce((acc, curr) => acc + (curr.visibilityScore || 0), 0) / competitorDocs.length 
+      : 500; // Baseline
+
+    const myVisibility = 500 + (organicCount * 100) + (finalDetailed.length * 50);
+    
+    // Relative Strength: How do we stack up against the watchlist?
+    const marketShareFactor = myVisibility / (avgCompetitorVisibility || 1);
+    
+    // Base Authority (60) + Keyword Diversity (up to 20) + Performance (up to 10) + Market Position (up to 10)
+    let dynamicAuthority = 60 + (finalDetailed.length * 1.5);
+    
+    if (marketShareFactor > 1.2) dynamicAuthority += 10; // Market Leader
+    else if (marketShareFactor > 0.8) dynamicAuthority += 5; // Strong Contender
+    else dynamicAuthority -= 5; // Underdog
+
+    const finalAuthority = Math.min(98, Math.max(15, Math.round(dynamicAuthority))).toString();
+    const finalVisibility = myVisibility.toString();
 
     const finalData = {
       industry: analysis.industry,
       topic: analysis.topic,
       detailed: finalDetailed,
-      visibility: calculatedVisibility,
-      authority: calculatedAuthority,
+      visibility: finalVisibility,
+      authority: finalAuthority,
       source: dataSource,
       updatedAt: new Date().toISOString()
     };

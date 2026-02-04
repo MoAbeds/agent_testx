@@ -16,7 +16,6 @@ export async function GET(request: NextRequest) {
     const q = query(
       collection(db, "events"),
       where("siteId", "==", siteId),
-      orderBy("occurredAt", "desc"),
       limit(50)
     );
 
@@ -24,7 +23,11 @@ export async function GET(request: NextRequest) {
     const events = snap.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
-    }));
+    })).sort((a: any, b: any) => {
+      const tA = a.occurredAt?.seconds || 0;
+      const tB = b.occurredAt?.seconds || 0;
+      return tB - tA;
+    });
 
     return NextResponse.json({ events });
   } catch (error: any) {

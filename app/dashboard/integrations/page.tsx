@@ -3,9 +3,9 @@
 import { db, auth } from '@/lib/firebase';
 import { useAuth } from '@/lib/hooks';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { useEffect, useState, Suspense } from 'react';
-import { Plug, RefreshCw, MessageSquare, Loader2 } from 'lucide-react';
+import { Plug, RefreshCw, MessageSquare, Loader2, CheckCircle2 } from 'lucide-react';
 import WebhookManager from '@/components/WebhookManager';
 
 function IntegrationsContent() {
@@ -25,11 +25,20 @@ function IntegrationsContent() {
   }, [user]);
 
   const handleConnect = async () => {
+    if (!user) return;
     setIsLoading(true);
     const provider = new GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/webmasters.readonly');
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      if (result.user) {
+        // Mark Google Search Console as connected in the user profile
+        const userRef = doc(db, "users", user.uid);
+        await updateDoc(userRef, {
+          gscConnected: true,
+          gscLinkedAt: new Date().toISOString()
+        });
+      }
     } catch (error) {
       console.error(error);
     } finally {
@@ -38,6 +47,8 @@ function IntegrationsContent() {
   };
 
   if (authLoading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-terminal" size={32} /></div>;
+
+  const isGscConnected = user?.gscConnected === true;
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-10">
@@ -56,26 +67,23 @@ function IntegrationsContent() {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-100">Google Search Console</h3>
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mt-1">Status: {user ? 'Linked' : 'Disconnected'}</p>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mt-1">Status: {isGscConnected ? 'Active' : 'Disconnected'}</p>
               </div>
             </div>
 
             <div>
-              {user ? (
+              {isGscConnected ? (
                 <div className="flex items-center gap-3">
                   <span className="flex items-center gap-2 text-sm text-terminal bg-terminal/10 px-3 py-1.5 rounded-full border border-terminal/20">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
-                    Connected
+                    <CheckCircle2 size={14} className="text-terminal" />
+                    Linked
                   </span>
                 </div>
               ) : (
                 <button
                   onClick={handleConnect}
                   disabled={isLoading}
-                  className="flex items-center gap-2 px-4 py-2 bg-white text-black font-medium rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 bg-white text-black font-medium rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 text-xs uppercase font-bold tracking-wider"
                 >
                   {isLoading ? <RefreshCw className="animate-spin" size={18} /> : 'Connect'}
                 </button>

@@ -3,7 +3,7 @@
 import { useAuth } from '@/lib/hooks';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useEffect, useState, Suspense } from 'react';
-import { Shield, Globe, Clock, CheckCircle, Loader2, Check, X, RefreshCw } from 'lucide-react';
+import { Shield, Globe, Clock, CheckCircle, Loader2, Check, X, RefreshCw, Bot } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import CreateRuleForm from '@/components/CreateRuleForm';
 

@@ -79,6 +79,7 @@ Return ONLY JSON: { "industry": "...", "topic": "...", "queries": ["...", "..."]
     const detailedKeywords: any[] = [];
 
     // 4. FETCH REAL DATA FROM DATAFORSEO
+    let dataSource = 'fallback';
     if (dfseoLogin && dfseoPassword && keywordList.length > 0) {
       try {
         console.log(`[DataForSEO] Fetching volume for ${keywordList.length} keywords...`);
@@ -90,7 +91,7 @@ Return ONLY JSON: { "industry": "...", "topic": "...", "queries": ["...", "..."]
             location_name: "United States",
             language_name: "English"
           }],
-          { headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'application/json' } }
+          { headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'application/json' }, timeout: 10000 }
         );
 
         const results = dfRes.data.tasks?.[0]?.result;
@@ -105,10 +106,15 @@ Return ONLY JSON: { "industry": "...", "topic": "...", "queries": ["...", "..."]
               difficulty: item.keyword_difficulty || 0
             });
           });
+          if (detailedKeywords.length > 0) dataSource = 'dataforseo';
         }
       } catch (dfError: any) {
-        console.error('[DataForSEO] API Error:', dfError.response?.data || dfError.message);
+        const errorData = dfError.response?.data || dfError.message;
+        console.error('[DataForSEO] API Error:', errorData);
+        await logEvent(siteId, 'ERROR', 'DataForSEO API', { error: errorData });
       }
+    } else if (!dfseoLogin || !dfseoPassword) {
+      console.warn("[DataForSEO] Credentials missing from environment variables.");
     }
 
     // Fallback to "Mojo Math" if DataForSEO failed or wasn't configured
@@ -116,7 +122,7 @@ Return ONLY JSON: { "industry": "...", "topic": "...", "queries": ["...", "..."]
       keywordList.forEach(kw => {
         detailedKeywords.push({
           keyword: kw,
-          relevance: 'Estimated',
+          relevance: 'Estimated (AI)',
           competition: 'Market-Driven',
           results: (Math.floor(Math.random() * 5000) + 1200).toString()
         });
@@ -134,6 +140,7 @@ Return ONLY JSON: { "industry": "...", "topic": "...", "queries": ["...", "..."]
       detailed: detailedKeywords.sort((a, b) => Number(b.results) - Number(a.results)),
       visibility: calculatedVisibility,
       authority: calculatedAuthority,
+      source: dataSource,
       updatedAt: new Date().toISOString()
     };
 

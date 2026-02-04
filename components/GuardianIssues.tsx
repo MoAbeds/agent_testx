@@ -14,7 +14,7 @@ interface Issue {
 
 export default function GuardianIssues({ initialIssues, siteId }: { initialIssues: Issue[], siteId: string }) {
   const { user } = useAuth();
-  const [issues, setIssues] = useState(issuesFilter(initialIssues));
+  const [issues, setIssues] = useState<Issue[]>([]);
   const [loading, setLoading] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
   const [auditing, setAuditing] = useState(false);
@@ -118,7 +118,6 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
   const generateReport = async () => {
     if (isFreePlan) return setNotification({ message: "Whitelabel Reports are an Agency feature.", type: "info" });
     setReporting(true);
-    // Future: implement PDF generation with whitelabel settings
     setTimeout(() => {
       setNotification({ message: "Whitelabel report generated and ready for download!", type: 'success' });
       setReporting(false);

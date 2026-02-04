@@ -83,20 +83,33 @@ Return ONLY JSON: { "industry": "...", "topic": "...", "queries": ["...", "..."]
     let dataSource = 'fallback';
     if (dfseoLogin && dfseoPassword && keywordList.length > 0) {
       try {
-        console.log(`[DataForSEO] Fetching volume for ${keywordList.length} keywords...`);
+        console.log(`[DataForSEO] Initiating Live Search Volume for ${keywordList.length} keywords...`);
+        
+        // DataForSEO uses Basic Auth with Login:Password
         const auth = Buffer.from(`${dfseoLogin}:${dfseoPassword}`).toString('base64');
         
+        // Correct endpoint for live search volume data
         const dfRes = await axios.post('https://api.dataforseo.com/v3/keywords_data/google/search_volume/live', 
           [{
             keywords: keywordList,
             location_name: "United States",
-            language_name: "English"
+            language_name: "English",
+            search_partners: true
           }],
-          { headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'application/json' }, timeout: 10000 }
+          { 
+            headers: { 
+              'Authorization': `Basic ${auth}`, 
+              'Content-Type': 'application/json' 
+            }, 
+            timeout: 20000 
+          }
         );
 
-        const results = dfRes.data.tasks?.[0]?.result;
-        if (results && Array.isArray(results)) {
+        console.log(`[DataForSEO] Response received. Status: ${dfRes.status}`);
+
+        const task = dfRes.data.tasks?.[0];
+        if (task && task.status_code === 20000 && Array.isArray(task.result)) {
+          const results = task.result;
           results.forEach((item: any) => {
             detailedKeywords.push({
               keyword: item.keyword,
@@ -107,11 +120,18 @@ Return ONLY JSON: { "industry": "...", "topic": "...", "queries": ["...", "..."]
               difficulty: item.keyword_difficulty || 0
             });
           });
-          if (detailedKeywords.length > 0) dataSource = 'dataforseo';
+          
+          if (detailedKeywords.length > 0) {
+            dataSource = 'dataforseo';
+            console.log(`[DataForSEO] Successfully mapped ${detailedKeywords.length} live keywords.`);
+          }
+        } else {
+          console.warn(`[DataForSEO] Task failed or returned no results. Status Message: ${task?.status_message}`);
+          await logEvent(siteId, 'WARNING', 'DataForSEO API', { message: task?.status_message || 'Empty result' });
         }
       } catch (dfError: any) {
         const errorData = dfError.response?.data || dfError.message;
-        console.error('[DataForSEO] API Error:', errorData);
+        console.error('[DataForSEO] API Fatal Error:', errorData);
         await logEvent(siteId, 'ERROR', 'DataForSEO API', { error: errorData });
       }
     } else if (!dfseoLogin || !dfseoPassword) {

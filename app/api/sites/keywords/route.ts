@@ -66,7 +66,7 @@ Return ONLY JSON: { "seeds": ["seed 1", "seed 2", "seed 3"], "industry": "...", 
       const auth = Buffer.from(`${dfseoLogin}:${dfseoPassword}`).toString('base64');
       const seeds = analysis.seeds.slice(0, 3).map((s: string) => s.replace(/[^a-zA-Z0-9\s]/g, '').trim().substring(0, 60));
 
-      const requests = seeds.map(seed => 
+      const requests = seeds.map((seed: string) => 
         axios.post('https://api.dataforseo.com/v3/dataforseo_labs/google/keyword_ideas/live', 
           [{ keyword: seed, location_code: 2840, language_code: "en", limit: 15, include_seed: true }],
           { headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'application/json' }, timeout: 15000 }

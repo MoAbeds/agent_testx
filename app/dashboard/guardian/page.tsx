@@ -118,6 +118,14 @@ function GuardianContent() {
     } catch (e) {}
   }
 
+  // Extract audit data if present
+  let audit = { scores: { performance: 0, accessibility: 0, bestPractices: 0, seo: 0 }, metrics: { fcp: 'N/A', lcp: 'N/A', cls: 'N/A' } };
+  if (site.lastAudit) {
+    try {
+      audit = JSON.parse(site.lastAudit);
+    } catch (e) {}
+  }
+
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <header className="mb-10 flex flex-col xl:flex-row xl:items-end justify-between gap-6">
@@ -142,6 +150,13 @@ function GuardianContent() {
             </div>
             
             <div className="flex gap-3">
+              <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl px-3 py-2 md:px-4 md:py-3 flex items-center gap-3">
+                  <Zap className={Number(audit.scores.performance) > 80 ? "text-terminal" : "text-yellow-500"} size={18} />
+                  <div>
+                      <span className="text-[8px] md:text-[10px] uppercase tracking-widest text-gray-500 font-bold block">Performance</span>
+                      <span className="text-sm md:text-lg font-bold text-white font-mono">{Math.round(audit.scores.performance)}%</span>
+                  </div>
+              </div>
               <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl px-3 py-2 md:px-4 md:py-3 flex items-center gap-3">
                   <Target className="text-gray-500" size={18} />
                   <div>

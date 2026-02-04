@@ -17,11 +17,11 @@ export function useAuth() {
 
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
-        // ⚡ OPTIMIZATION: Set user immediately to resolve loading state
+        // Set basic auth user immediately
         setUser(u);
         setLoading(false); 
 
-        // Sync Firestore profile in background (don't block the UI)
+        // SYNC FIREBASE PROFILE
         try {
           const userRef = doc(db, "users", u.uid);
           const snap = await getDoc(userRef);
@@ -29,7 +29,8 @@ export function useAuth() {
             setUser({ ...u, ...snap.data() });
           }
         } catch (e) {
-          console.error("[Auth] Profile sync failed:", e);
+          // If profile sync fails (e.g. permission denied on new account),
+          // we still have the basic auth user so the dashboard doesn't hang.
         }
       } else {
         setUser(null);

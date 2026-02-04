@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from "@/lib/firebase";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
 
 export const dynamic = 'force-dynamic';
 
@@ -17,20 +17,17 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const siteId = searchParams.get('siteId');
+    const userId = searchParams.get('userId'); // Pass userId for server-side verification
 
-    // 1. Fetch sites (all or filtered by siteId)
-    let sitesQuery;
-    if (siteId) {
-      sitesQuery = query(collection(db, "sites"), where("__name__", "==", siteId));
-    } else {
-      sitesQuery = collection(db, "sites");
-    }
-    
+    if (!userId) return NextResponse.json({ error: 'Unauthorized: No userId' }, { status: 401 });
+
+    // 1. Fetch sites belonging ONLY to this user
+    const sitesQuery = query(collection(db, "sites"), where("userId", "==", userId));
     const sitesSnap = await getDocs(sitesQuery);
+    
     const sitesMap: Record<string, any> = {};
     sitesSnap.forEach(doc => {
       const siteData = doc.data();
-      // Parse authority/visibility from targetKeywords if they exist
       if (siteData.targetKeywords) {
         try {
           const parsed = JSON.parse(siteData.targetKeywords);
@@ -42,7 +39,15 @@ export async function GET(request: NextRequest) {
     });
 
     const siteIds = Object.keys(sitesMap);
-    if (siteIds.length === 0) {
+    
+    // If a specific siteId was requested, verify ownership
+    if (siteId && !siteIds.includes(siteId)) {
+      return NextResponse.json({ error: 'Unauthorized site access' }, { status: 403 });
+    }
+
+    const targetSiteIds = siteId ? [siteId] : siteIds;
+
+    if (targetSiteIds.length === 0) {
       return NextResponse.json({
         healthScore: 0,
         pagesScanned: 0,
@@ -53,41 +58,27 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 2. Fetch pages for these sites
-    const pagesQ = query(collection(db, "pages"), where("siteId", "in", siteIds.slice(0, 10))); // Firestore "in" limit is 10
+    // 2. Fetch pages for THESE specific sites only
+    const pagesQ = query(collection(db, "pages"), where("siteId", "in", targetSiteIds.slice(0, 10)));
     const pagesSnap = await getDocs(pagesQ);
     const pages = pagesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
 
-    // 3. Fetch rules for these sites
-    const rulesQ = query(collection(db, "rules"), where("siteId", "in", siteIds.slice(0, 10)));
+    // 3. Fetch rules for THESE specific sites only
+    const rulesQ = query(collection(db, "rules"), where("siteId", "in", targetSiteIds.slice(0, 10)));
     const rulesSnap = await getDocs(rulesQ);
     const activeRulesCount = rulesSnap.docs.filter(doc => doc.data().isActive).length;
 
-    // 4. Calculate stats and health score
+    // 4. Calculate stats
     let healthScore = 100;
     let issuesFound = 0;
     const opportunities: Opportunity[] = [];
 
-    // Factor in PageSpeed if available
-    let totalSpeedScore = 0;
-    let speedCount = 0;
-
-    for (const id in sitesMap) {
-      if (sitesMap[id].lastAudit) {
-        try {
-          const audit = JSON.parse(sitesMap[id].lastAudit);
-          totalSpeedScore += (audit.scores?.performance || 0);
-          speedCount++;
-        } catch(e) {}
-      }
-    }
-
-    const avgSpeed = speedCount > 0 ? totalSpeedScore / speedCount : 80;
-
     for (const page of pages) {
       const pageIssues: string[] = [];
       const siteData = sitesMap[page.siteId];
-      const domain = siteData?.domain || 'unknown';
+      if (!siteData) continue; // Final safety filter
+
+      const domain = siteData.domain || 'unknown';
       
       if (!page.title || page.title.trim() === '' || page.title === 'N/A') {
         pageIssues.push('Missing title tag');
@@ -117,8 +108,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Weight health score with average speed
-    healthScore = (healthScore * 0.7) + (avgSpeed * 0.3);
     healthScore = Math.max(0, Math.min(100, Math.round(healthScore)));
 
     return NextResponse.json({
@@ -132,10 +121,6 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Error generating report summary:', error);
-    return NextResponse.json(
-      { error: `Failed to generate report: ${error.message}` },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

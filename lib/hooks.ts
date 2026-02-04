@@ -1,7 +1,7 @@
-import { onAuthStateChanged } from "firebase/auth";
-import { useEffect, useState } from "react";
 import { auth, db } from "./firebase";
 import { doc, onSnapshot } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
+import { useEffect, useState } from "react";
 
 export { db };
 
@@ -11,15 +11,14 @@ export function useAuth() {
 
   useEffect(() => {
     if (!auth) {
-      console.error("[AuthHook] Auth instance is null. Check Firebase config.");
       setLoading(false);
       return;
     }
 
-
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       if (u) {
-        setUser(u); // SET USER IMMEDIATELY to stop loading state
+        // SET USER IMMEDIATELY
+        setUser(u);
         setLoading(false); 
 
         // Then fetch profile in background
@@ -30,12 +29,10 @@ export function useAuth() {
           }
         });
       } else {
+        // HARD WIPE on logout
         setUser(null);
         setLoading(false);
       }
-    }, (error) => {
-      console.error("[AuthHook] Auth State Error:", error.message);
-      setLoading(false);
     });
 
     return () => unsubscribe();

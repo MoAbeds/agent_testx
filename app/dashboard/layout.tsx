@@ -15,7 +15,9 @@ export default function DashboardLayout({
   const router = useRouter();
 
   useEffect(() => {
+    console.log("[DashboardLayout] User:", user?.email, "Loading:", loading);
     if (!loading && !user) {
+      console.log("[DashboardLayout] No user found, redirecting to /login...");
       router.push('/login');
     }
   }, [user, loading, router]);

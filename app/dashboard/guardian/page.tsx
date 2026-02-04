@@ -11,7 +11,7 @@ import IndustryDeepDive from '@/components/IndustryDeepDive';
 import { Shield, Target, Search, Sparkles, Loader2, Zap, Globe } from 'lucide-react';
 import { useAuth } from '@/lib/hooks';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, limit } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, limit, getDocs } from 'firebase/firestore';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
@@ -26,20 +26,26 @@ function GuardianContent() {
 
   const selectedSiteId = searchParams.get('siteId');
 
-  // 1. Unified Site Listener
+  // 1. Fetch only sites that BELONG to this user
   useEffect(() => {
     if (!user?.uid || !db) return;
 
+    // Reset everything when user changes
+    setAllSites([]);
+    setSite(null);
+    setIssues([]);
+    setAuditEvents([]);
+
     const sitesQuery = query(
       collection(db, "sites"), 
-      where("userId", "==", user.uid),
-      limit(20)
+      where("userId", "==", user.uid)
     );
     
     const unsubscribeSites = onSnapshot(sitesQuery, (snap) => {
       const sites = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setAllSites(sites);
 
+      // Verify that the selected site actually belongs to this user
       const current = selectedSiteId 
         ? sites.find(s => s.id === selectedSiteId) 
         : sites[0];
@@ -53,24 +59,24 @@ function GuardianContent() {
     return () => unsubscribeSites();
   }, [user?.uid, selectedSiteId]);
 
-  // 2. Optimized Event Listener (Local Filtering)
+  // 2. Fetch events ONLY for the verified site
   useEffect(() => {
-    if (!site?.id || !user?.uid) {
-      setIssues([]);
-      setAuditEvents([]);
-      return;
-    }
+    // SECURITY: If site changes, kill previous data immediately
+    setIssues([]);
+    setAuditEvents([]);
 
+    if (!site?.id || !user?.uid) return;
+
+    // Direct filter on siteId ensures we don't grab global data
     const eventsQuery = query(
       collection(db, "events"), 
       where("siteId", "==", site.id),
-      limit(50)
+      limit(100)
     );
 
     const unsubscribeEvents = onSnapshot(eventsQuery, (snap) => {
       const allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       
-      // Filter & Sort in-memory for speed
       const filtered = allEvents.filter((e: any) => 
         ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
       );
@@ -84,7 +90,7 @@ function GuardianContent() {
     });
 
     return () => unsubscribeEvents();
-  }, [site?.id]);
+  }, [site?.id, user?.uid]);
 
   if (loading) {
     return (
@@ -99,7 +105,7 @@ function GuardianContent() {
       <div className="p-8 text-center min-h-screen flex flex-col items-center justify-center">
         <Globe className="mx-auto text-gray-600 mb-4" size={48} />
         <h1 className="text-2xl font-bold text-white mb-4">Connect a Domain</h1>
-        <p className="text-gray-400 mb-8 max-w-sm">No site is being monitored. Add your first site in the Overview.</p>
+        <p className="text-gray-400 mb-8 max-w-sm">No site is being monitored. Add your first site in the Overview to activate the Guardian.</p>
         <button onClick={() => window.location.href = '/dashboard'} className="px-6 py-3 bg-terminal text-black font-bold rounded-xl hover:bg-green-400 transition-all">
           Add First Site
         </button>

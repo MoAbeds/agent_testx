@@ -1,6 +1,7 @@
 'use client';
 
-import { db, auth, useAuth } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
+import { useAuth } from '@/lib/hooks';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useEffect, useState, Suspense } from 'react';

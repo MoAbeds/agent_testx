@@ -25,25 +25,32 @@ export function useAuth() {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       clearTimeout(timer);
       if (u) {
+        console.log("[AuthHook] Auth detected, fetching profile...");
         // Listen to user profile in Firestore
         const userRef = doc(db, "users", u.uid);
         const unsubscribeProfile = onSnapshot(userRef, (snap) => {
           if (snap.exists()) {
+            console.log("[AuthHook] Profile found.");
             setUser({ ...u, ...snap.data() });
           } else {
-            // Fallback if firestore doc doesn't exist yet
+            console.log("[AuthHook] Profile missing, using basic user.");
             setUser(u);
           }
           setLoading(false);
         }, (error) => {
-          console.error("Firestore Profile Error:", error);
+          console.error("[AuthHook] Profile Error:", error);
           setUser(u); // Fallback to basic auth user
           setLoading(false);
         });
       } else {
+        console.log("[AuthHook] No user found.");
         setUser(null);
         setLoading(false);
       }
+    }, (error) => {
+      console.error("[AuthHook] Auth State Error:", error);
+      clearTimeout(timer);
+      setLoading(false);
     });
     return unsubscribe;
   }, []);

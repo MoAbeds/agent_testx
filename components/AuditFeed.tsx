@@ -20,8 +20,12 @@ export default function AuditFeed({ initialEvents, siteId }: { initialEvents: Ev
 
   // Sync state when props change
   useEffect(() => {
-    // SECURITY: Only show events that match the current siteId and clear others
-    if (initialEvents) {
+    // SECURITY: If siteId changes, IMMEDIATELY wipe previous events from state
+    // to prevent "Ghosting" from the previous account/site.
+    setEvents([]); 
+
+    if (initialEvents && initialEvents.length > 0) {
+      // Secondary safety filter: ensure every event in the feed matches the current siteId
       const filtered = initialEvents.filter(e => e.siteId === siteId);
       setEvents(filtered);
     }
@@ -32,10 +36,7 @@ export default function AuditFeed({ initialEvents, siteId }: { initialEvents: Ev
     try {
       const parsed = JSON.parse(details);
       const ruleId = parsed.ruleId;
-      if (!ruleId) {
-        alert("This action cannot be undone automatically.");
-        return;
-      }
+      if (!ruleId) return;
 
       setUndoing(eventId);
       const res = await fetch('/api/agent/undo', {
@@ -46,12 +47,9 @@ export default function AuditFeed({ initialEvents, siteId }: { initialEvents: Ev
       
       const data = await res.json();
       if (data.success) {
-        setEvents(events.map(e => e.id === eventId ? { ...e, type: 'UNDO_ACTION' } : e));
-      } else {
-        alert(data.error || "Undo failed.");
+        setEvents(prev => prev.map(e => e.id === eventId ? { ...e, type: 'UNDO_ACTION' } : e));
       }
     } catch (e) {
-      console.error(e);
     } finally {
       setUndoing(null);
     }
@@ -64,20 +62,25 @@ export default function AuditFeed({ initialEvents, siteId }: { initialEvents: Ev
           <History size={16} className="text-gray-400" />
           Audit Trail
         </h3>
-        <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Latest Actions</span>
+        <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Secure Feed</span>
       </div>
 
       <div className="divide-y divide-gray-800/50 max-h-[500px] overflow-y-auto">
         {events.length === 0 ? (
           <div className="p-8 text-center text-gray-600 text-sm italic">
-            No actions recorded for this site.
+            No actions recorded for this site ID.
           </div>
         ) : (
           events.map((event) => {
             const isAutoFix = event.type === 'AUTO_FIX';
             const isUndo = event.type === 'UNDO_ACTION';
-            const date = event.occurredAt?.toDate ? event.occurredAt.toDate() : new Date(event.occurredAt);
-            const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            // Safe date parsing
+            let time = '--:--';
+            try {
+              const date = event.occurredAt?.toDate ? event.occurredAt.toDate() : new Date(event.occurredAt);
+              time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } catch(e) {}
 
             return (
               <div key={event.id} className="p-4 hover:bg-white/[0.02] transition-colors flex items-center justify-between group">
@@ -92,10 +95,10 @@ export default function AuditFeed({ initialEvents, siteId }: { initialEvents: Ev
                       }`}>
                         {event.type.replace('_', ' ')}
                       </span>
-                      <span className="text-xs font-mono text-gray-400 truncate max-w-[100px]">{event.path}</span>
+                      <span className="text-xs font-mono text-gray-300 truncate max-w-[100px]">{event.path}</span>
                     </div>
                     <p className="text-xs text-gray-500">
-                      {event.details ? JSON.parse(event.details).message || 'Action processed' : 'Action processed by Mojo Agent'}
+                      {event.details ? (JSON.parse(event.details).message || 'Action processed') : 'Action processed'}
                     </p>
                   </div>
                 </div>
@@ -109,12 +112,6 @@ export default function AuditFeed({ initialEvents, siteId }: { initialEvents: Ev
                     {undoing === event.id ? <RefreshCw className="animate-spin" size={12} /> : <RotateCcw size={12} />}
                     Undo
                   </button>
-                )}
-
-                {isUndo && (
-                  <div className="text-gray-600">
-                    <Check size={14} />
-                  </div>
                 )}
               </div>
             );

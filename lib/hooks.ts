@@ -21,24 +21,19 @@ export function useAuth() {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       if (u) {
         console.log("[AuthHook] Auth detected:", u.uid);
+        setUser(u); // SET USER IMMEDIATELY to stop loading state
+        setLoading(false); 
+
+        // Then fetch profile in background
         const userRef = doc(db, "users", u.uid);
-        const unsubscribeProfile = onSnapshot(userRef, (snap) => {
+        onSnapshot(userRef, (snap) => {
           if (snap.exists()) {
-            console.log("[AuthHook] Profile found.");
+            console.log("[AuthHook] Profile synced.");
             setUser({ ...u, ...snap.data() });
-          } else {
-            console.log("[AuthHook] Profile missing, using basic auth.");
-            setUser(u);
           }
-          setLoading(false);
-        }, (error) => {
-          console.error("[AuthHook] Firestore Error:", error.message);
-          setUser(u);
-          setLoading(false);
         });
-        return () => unsubscribeProfile();
       } else {
-        console.log("[AuthHook] No user session found.");
+        console.log("[AuthHook] No user session.");
         setUser(null);
         setLoading(false);
       }

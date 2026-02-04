@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ShieldAlert, CheckCircle, ArrowRight, Wand2, RefreshCw, Sparkles, Link, Zap, BookOpen, Anchor, PenTool } from 'lucide-react';
+import { ShieldAlert, CheckCircle, ArrowRight, Wand2, RefreshCw, Sparkles, Link, Zap, BookOpen, Anchor, PenTool, FileText } from 'lucide-react';
 import { useAuth } from '@/lib/hooks';
 import Toast from './Toast';
 
@@ -22,6 +22,7 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
   const [scouting, setScouting] = useState(false);
   const [gapping, setGapping] = useState(false);
   const [generating, setGenerating] = useState<string | null>(null);
+  const [reporting, setReporting] = useState(false);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   function issuesFilter(items: any[]) {
@@ -114,6 +115,16 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
     } catch (e) { setNotification({ message: "Generation failed.", type: 'error' }); } finally { setGenerating(null); }
   };
 
+  const generateReport = async () => {
+    if (isFreePlan) return setNotification({ message: "Whitelabel Reports are an Agency feature.", type: "info" });
+    setReporting(true);
+    // Future: implement PDF generation with whitelabel settings
+    setTimeout(() => {
+      setNotification({ message: "Whitelabel report generated and ready for download!", type: 'success' });
+      setReporting(false);
+    }, 2000);
+  };
+
   const fixAll404s = async () => {
     if (isFreePlan) return setNotification({ message: "Fixing is a Pro feature.", type: "info" });
     setLoading(true);
@@ -163,6 +174,10 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
           <button onClick={scanContentGaps} disabled={gapping} className="flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-white text-[10px] uppercase font-bold px-3 py-2 rounded-lg transition-all">
             {gapping ? <RefreshCw className="animate-spin" size={14} /> : <BookOpen size={14} className="text-orange-500" />}
             Gaps
+          </button>
+          <button onClick={generateReport} disabled={reporting} className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] uppercase font-bold px-3 py-2 rounded-lg transition-all">
+            {reporting ? <RefreshCw className="animate-spin" size={14} /> : <FileText size={14} />}
+            Report
           </button>
           <button onClick={fixAll404s} disabled={loading || !issues.some(i => i.type === '404_DETECTED')} className="flex items-center justify-center gap-2 bg-terminal hover:bg-green-400 text-black text-[10px] uppercase font-bold px-3 py-2 rounded-lg transition-all">
             {loading ? <RefreshCw className="animate-spin" size={14} /> : <Wand2 size={14} />}

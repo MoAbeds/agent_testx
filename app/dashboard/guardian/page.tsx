@@ -30,7 +30,7 @@ function GuardianContent() {
   useEffect(() => {
     if (!user?.uid || !db) return;
 
-    // PHYSICAL WIPE on user change
+    // IMMEDIATE HARD WIPE on user change to prevent data ghosting
     setAllSites([]);
     setSite(null);
     setIssues([]);
@@ -43,11 +43,14 @@ function GuardianContent() {
     
     const unsubscribeSites = onSnapshot(sitesQuery, (snap) => {
       const sites = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setAllSites(sites);
+      
+      // Secondary filter in JS to be 1000% sure
+      const verifiedSites = sites.filter(s => s.userId === user.uid);
+      setAllSites(verifiedSites);
 
       const current = selectedSiteId 
-        ? sites.find(s => s.id === selectedSiteId) 
-        : sites[0];
+        ? verifiedSites.find(s => s.id === selectedSiteId) 
+        : verifiedSites[0];
       
       setSite(current || null);
       setLoading(false);
@@ -58,12 +61,13 @@ function GuardianContent() {
     return () => unsubscribeSites();
   }, [user?.uid, selectedSiteId]);
 
-  // 2. Fetch events ONLY if the site belongs to the user
+  // 2. Fetch events ONLY for the verified site belonging to the current user
   useEffect(() => {
     // SECURITY WIPE
     setIssues([]);
     setAuditEvents([]);
 
+    // Check if site exists AND belongs to the current logged-in user
     if (!site?.id || !user?.uid || site.userId !== user.uid) {
       return;
     }
@@ -77,7 +81,7 @@ function GuardianContent() {
     const unsubscribeEvents = onSnapshot(eventsQuery, (snap) => {
       const allEvents = snap.docs
         .map(d => ({ id: d.id, ...d.data() } as any))
-        .filter(e => e.siteId === site.id); // Double manual filter
+        .filter(e => e.siteId === site.id); // Re-verify siteId filter
       
       const filtered = allEvents.filter((e: any) => 
         ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
@@ -90,7 +94,6 @@ function GuardianContent() {
       setIssues(filtered);
       setAuditEvents(sorted.slice(0, 20));
     }, (error) => {
-      // If permission denied by Firestore Rules, wipe data
       setIssues([]);
       setAuditEvents([]);
     });
@@ -110,8 +113,8 @@ function GuardianContent() {
     return (
       <div className="p-8 text-center min-h-screen flex flex-col items-center justify-center">
         <Globe className="mx-auto text-gray-600 mb-4" size={48} />
-        <h1 className="text-2xl font-bold text-white mb-4">Mojo Guardian</h1>
-        <p className="text-gray-400 mb-8 max-w-sm">This is a private dashboard. No sites found for this account.</p>
+        <h1 className="text-2xl font-bold text-white mb-4">Autonomous SEO Guardian</h1>
+        <p className="text-gray-400 mb-8 max-w-sm">No site found for this account. Go to the Overview to connect your first domain.</p>
         <button onClick={() => window.location.href = '/dashboard'} className="px-6 py-3 bg-terminal text-black font-bold rounded-xl hover:bg-green-400 transition-all">
           Connect First Site
         </button>
@@ -119,6 +122,7 @@ function GuardianContent() {
     );
   }
 
+  // --- UI Extraction ---
   let keywords = { industry: 'N/A', topic: 'N/A', detailed: [], visibility: '0', authority: '0' };
   if (site?.targetKeywords) { try { keywords = JSON.parse(site.targetKeywords); } catch (e) {} }
 
@@ -136,7 +140,7 @@ function GuardianContent() {
             <h1 className="text-2xl md:text-4xl font-bold text-white font-serif tracking-tight">Mojo Guardian</h1>
           </div>
           <p className="text-sm md:text-base text-gray-400 max-w-xl">
-            Monitoring <span className="text-blue-400 font-mono">{site?.domain}</span>.
+            Monitoring <span className="text-blue-400 font-mono">{site?.domain}</span> for threats and opportunities.
           </p>
         </div>
 

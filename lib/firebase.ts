@@ -20,4 +20,11 @@ if (typeof window !== "undefined" || process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
 const auth = app ? getAuth(app) : null as any;
 const db = app ? getFirestore(app) : null as any;
 
+// DISABLE PERSISTENCE to prevent cross-account data ghosting
+if (auth && typeof window !== "undefined") {
+  import("firebase/auth").then(({ setPersistence, browserSessionPersistence }) => {
+    setPersistence(auth, browserSessionPersistence);
+  });
+}
+
 export { auth, db };

@@ -1,0 +1,11 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="120" fill="#0A0A0A"/>
+  <path d="M256 80L100 180V332L256 432L412 332V180L256 80Z" fill="#22C55E" fill-opacity="0.1" stroke="#22C55E" stroke-width="12"/>
+  <path d="M256 140L160 205V307L256 372L352 307V205L256 140Z" fill="#22C55E"/>
+  <path d="M256 180L210 215V297L256 332L302 297V215L256 180Z" fill="#0A0A0A"/>
+  <circle cx="256" cy="256" r="30" fill="#22C55E">
+    <animate attributeName="opacity" values="1;0.4;1" dur="2s" repeatCount="indefinite" />
+  </circle>
+  <path d="M100 180L256 280L412 180" stroke="#22C55E" stroke-width="8" stroke-linecap="round"/>
+  <path d="M256 280V432" stroke="#22C55E" stroke-width="8" stroke-linecap="round"/>
+</svg>

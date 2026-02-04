@@ -3,8 +3,11 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Mojo SaaS",
+  title: "Mojo Guardian | Autonomous AI SEO",
   description: "Automated SEO & Traffic Optimization",
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({

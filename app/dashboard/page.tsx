@@ -55,14 +55,20 @@ export default function Dashboard() {
   // Fetch latest rule for Diff Viewer
   useEffect(() => {
     if (!user || !db) return;
+    // Removed orderBy to avoid mandatory composite index requirement
     const rulesQuery = query(
       collection(db, "rules"), 
       where("isActive", "==", true),
-      orderBy("createdAt", "desc"),
-      limit(1)
+      limit(10)
     );
     return onSnapshot(rulesQuery, (snap) => {
-      if (!snap.empty) setLatestRule(snap.docs[0].data());
+      if (!snap.empty) {
+        // Sort in memory instead
+        const sorted = snap.docs.map(d => d.data()).sort((a: any, b: any) => 
+          (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
+        );
+        setLatestRule(sorted[0]);
+      }
     });
   }, [user]);
 

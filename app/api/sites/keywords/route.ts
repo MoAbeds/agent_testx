@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     if (!serperKey) return NextResponse.json({ error: 'Serper API Key not configured' }, { status: 500 });
 
-    // 1. Initial Google Scan via Serper
+    // 1. Initial Google Scan via Serper (Context Gathering)
     const response = await fetch('https://google.serper.dev/search', {
       method: 'POST',
       headers: { 'X-API-KEY': serperKey, 'Content-Type': 'application/json' },
@@ -49,101 +49,75 @@ CONTEXT:
 - Target Website: ${site.domain}
 - Description: """${manualIndustry || 'None'}"""
 - Search Snippets: ${snippets}
-OBJECTIVE: Understand the niche and identify 5 high-value seed queries.
-Return ONLY JSON: { "industry": "...", "topic": "...", "queries": ["...", "..."] }`;
+OBJECTIVE: Understand the niche and identify the absolute best high-intent "Seed Keyword" for deep research.
+Return ONLY JSON: { "industry": "...", "topic": "One single perfect seed keyword (e.g. 'ai voice agents')", "description": "..." }`;
 
       const result = await model.generateContent(analysisPrompt);
       const text = result.response.text().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
       analysis = JSON.parse(text);
     } catch (e) {
-      analysis = { industry: manualIndustry || "General", topic: site.domain, queries: [manualIndustry || site.domain] };
+      analysis = { industry: manualIndustry || "General", topic: manualIndustry || site.domain };
     }
 
-    // 3. Discover Potential Keywords via Serper (Related & PAA)
-    const rawKeywords = new Set<string>();
-    const searchQueries = [analysis.topic, ...analysis.queries];
-    
-    for (const q of searchQueries.slice(0, 2)) {
+    const detailedKeywords: any[] = [];
+    let dataSource = 'fallback';
+
+    // 3. DEEP DISCOVERY VIA DATAFORSEO LABS API
+    if (dfseoLogin && dfseoPassword) {
+      try {
+        console.log(`[DataForSEO-Labs] Fetching deep keyword ideas for: ${analysis.topic}`);
+        const auth = Buffer.from(`${dfseoLogin}:${dfseoPassword}`).toString('base64');
+        
+        const dfRes = await axios.post('https://api.dataforseo.com/v3/dataforseo_labs/google/related_keywords/live', 
+          [{
+            keyword: analysis.topic,
+            location_code: 2840, // US
+            language_code: "en",
+            limit: 15
+          }],
+          { headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'application/json' }, timeout: 25000 }
+        );
+
+        const task = dfRes.data.tasks?.[0];
+        if (task && task.status_code === 20000 && task.result?.[0]?.items) {
+          const items = task.result[0].items;
+          items.forEach((item: any) => {
+            const data = item.keyword_data;
+            detailedKeywords.push({
+              keyword: data.keyword,
+              relevance: 'Market Match',
+              competition: data.keyword_info?.competition_level || 'Low',
+              results: (data.keyword_info?.search_volume || 0).toString(),
+              cpc: data.keyword_info?.cpc || 0,
+              difficulty: data.keyword_properties?.keyword_difficulty || 0,
+              intent: data.search_intent_info?.main_intent || 'commercial'
+            });
+          });
+          dataSource = 'dataforseo_labs';
+          console.log(`[DataForSEO-Labs] Successfully discovered ${detailedKeywords.length} deep keywords.`);
+        } else {
+          console.warn(`[DataForSEO-Labs] Task failed or no results: ${task?.status_message}`);
+        }
+      } catch (dfError: any) {
+        console.error('[DataForSEO-Labs] API Fatal Error:', dfError.message);
+      }
+    }
+
+    // Fallback if Labs API fails
+    if (detailedKeywords.length === 0) {
+      // Use existing Serper Fallback logic
+      const rawKeywords = new Set<string>();
       try {
         const res = await fetch('https://google.serper.dev/search', {
           method: 'POST',
           headers: { 'X-API-KEY': serperKey, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ q })
+          body: JSON.stringify({ q: analysis.topic })
         });
         const d = await res.json();
         d.relatedSearches?.forEach((s: any) => rawKeywords.add(s.query));
-        d.peopleAlsoAsk?.forEach((p: any) => rawKeywords.add(p.question));
       } catch (e) {}
-    }
 
-    const keywordList = Array.from(rawKeywords)
-      .map(kw => kw.replace(/[^a-zA-Z0-9\s]/g, '').trim()) // Strip ALL non-alphanumeric chars
-      .filter(kw => kw.length > 2 && kw.length <= 60) // Enforce DataForSEO char limit (60-80 typical)
-      .slice(0, 20);
-    const detailedKeywords: any[] = [];
-
-    // 4. FETCH REAL DATA FROM DATAFORSEO
-    let dataSource = 'fallback';
-    if (dfseoLogin && dfseoPassword && keywordList.length > 0) {
-      try {
-        console.log(`[DataForSEO] Initiating Live Search Volume for ${keywordList.length} keywords...`);
-        
-        // DataForSEO uses Basic Auth with Login:Password
-        const auth = Buffer.from(`${dfseoLogin}:${dfseoPassword}`).toString('base64');
-        
-        // Correct endpoint for live search volume data
-        const dfRes = await axios.post('https://api.dataforseo.com/v3/keywords_data/google/search_volume/live', 
-          [{
-            keywords: keywordList,
-            location_name: "United States",
-            language_name: "English",
-            search_partners: true
-          }],
-          { 
-            headers: { 
-              'Authorization': `Basic ${auth}`, 
-              'Content-Type': 'application/json' 
-            }, 
-            timeout: 20000 
-          }
-        );
-
-        console.log(`[DataForSEO] Response received. Status: ${dfRes.status}`);
-
-        const task = dfRes.data.tasks?.[0];
-        if (task && task.status_code === 20000 && Array.isArray(task.result)) {
-          const results = task.result;
-          results.forEach((item: any) => {
-            detailedKeywords.push({
-              keyword: item.keyword,
-              relevance: 'Market Match',
-              competition: item.competition_level || 'Low',
-              results: (item.search_volume || 0).toString(),
-              cpc: item.cpc || 0,
-              difficulty: item.keyword_difficulty || 0
-            });
-          });
-          
-          if (detailedKeywords.length > 0) {
-            dataSource = 'dataforseo';
-            console.log(`[DataForSEO] Successfully mapped ${detailedKeywords.length} live keywords.`);
-          }
-        } else {
-          console.warn(`[DataForSEO] Task failed or returned no results. Status Message: ${task?.status_message}`);
-          await logEvent(siteId, 'WARNING', 'DataForSEO API', { message: task?.status_message || 'Empty result' });
-        }
-      } catch (dfError: any) {
-        const errorData = dfError.response?.data || dfError.message;
-        console.error('[DataForSEO] API Fatal Error:', errorData);
-        await logEvent(siteId, 'ERROR', 'DataForSEO API', { error: errorData });
-      }
-    } else if (!dfseoLogin || !dfseoPassword) {
-      console.warn("[DataForSEO] Credentials missing from environment variables.");
-    }
-
-    // Fallback to "Mojo Math" if DataForSEO failed or wasn't configured
-    if (detailedKeywords.length === 0) {
-      keywordList.forEach(kw => {
+      Array.from(rawKeywords).slice(0, 10).forEach(kw => {
         detailedKeywords.push({
           keyword: kw,
           relevance: 'Estimated (AI)',
@@ -153,7 +127,7 @@ Return ONLY JSON: { "industry": "...", "topic": "...", "queries": ["...", "..."]
       });
     }
 
-    // 5. Final Metrics Calculation
+    // 4. Calculate Global Metrics
     const organicCount = serperData.organic?.length || 0;
     const calculatedVisibility = (500 + (organicCount * 100) + (detailedKeywords.length * 25)).toString();
     const calculatedAuthority = Math.floor(60 + Math.min(35, (detailedKeywords.length * 2))).toString();

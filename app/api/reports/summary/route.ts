@@ -29,7 +29,16 @@ export async function GET(request: NextRequest) {
     const sitesSnap = await getDocs(sitesQuery);
     const sitesMap: Record<string, any> = {};
     sitesSnap.forEach(doc => {
-      sitesMap[doc.id] = doc.data();
+      const siteData = doc.data();
+      // Parse authority/visibility from targetKeywords if they exist
+      if (siteData.targetKeywords) {
+        try {
+          const parsed = JSON.parse(siteData.targetKeywords);
+          siteData.authority = parsed.authority;
+          siteData.visibility = parsed.visibility;
+        } catch (e) {}
+      }
+      sitesMap[doc.id] = siteData;
     });
 
     const siteIds = Object.keys(sitesMap);

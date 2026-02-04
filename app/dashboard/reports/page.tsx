@@ -273,8 +273,10 @@ function ReportsContent() {
               icon={Target}
               title="Niche Authority"
               description={
-                data.siteDetails 
-                  ? `Based on market competition, your domain authority is ranked at ${data.siteDetails.authority || 'N/A'}/100.`
+                data.siteDetails?.authority 
+                  ? `Based on market competition, your domain authority is ranked at ${data.siteDetails.authority}/100.`
+                  : data.siteDetails 
+                  ? "Authority data not yet calculated. Run 'Research Site' in the Guardian console."
                   : `Analyzed ${data.pagesScanned} pages for structural integrity and metadata alignment.`
               }
               color="#06b6d4"

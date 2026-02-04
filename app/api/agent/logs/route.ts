@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, limit, doc, getDoc } from "firebase/firestore";
-import { getServerSession } from "next-auth"; // If using next-auth, otherwise we use custom check
 
 export const dynamic = 'force-dynamic';
 
@@ -9,24 +8,31 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const siteId = searchParams.get('siteId');
+    const userId = searchParams.get('userId');
 
-    if (!siteId) return NextResponse.json({ events: [], message: "No siteId provided" });
+    if (!siteId || !userId) {
+      return NextResponse.json({ events: [], message: "Missing siteId or userId" });
+    }
 
-    // 1. Verify Site Ownership (The ultimate security check)
-    // We fetch the site doc to see who it belongs to.
+    // 1. HARD SECURITY CHECK: Does this site actually belong to this userId?
     const siteRef = doc(db, "sites", siteId);
     const siteSnap = await getDoc(siteRef);
     
     if (!siteSnap.exists()) {
-      return NextResponse.json({ events: [], message: "Site not found" }, { status: 404 });
+      return NextResponse.json({ events: [], error: "SITE_NOT_FOUND" });
     }
 
-    // 2. Fetch only for this site
-    // We use a simple query to avoid index errors, then sort in-memory
+    const siteData = siteSnap.data();
+    if (siteData.userId !== userId) {
+      console.error(`[SECURITY] AUTH VIOLATION: User ${userId} tried to access Site ${siteId} (Owner: ${siteData.userId})`);
+      return NextResponse.json({ events: [], error: "UNAUTHORIZED_ACCESS" }, { status: 403 });
+    }
+
+    // 2. Fetch only for this site if authorized
     const q = query(
       collection(db, "events"),
       where("siteId", "==", siteId),
-      limit(100)
+      limit(50)
     );
 
     const snap = await getDocs(q);
@@ -41,11 +47,10 @@ export async function GET(request: NextRequest) {
         return tB - tA;
       });
 
-    console.log(`[Security-Guard] Served ${events.length} private events for site ${siteId}`);
-
     return NextResponse.json({ 
-      events: events.slice(0, 50),
-      siteDomain: siteSnap.data().domain 
+      success: true,
+      events: events,
+      siteDomain: siteData.domain 
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

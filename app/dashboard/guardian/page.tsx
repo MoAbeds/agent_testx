@@ -26,13 +26,9 @@ function GuardianContent() {
 
   const selectedSiteId = searchParams.get('siteId');
 
-  // 1. Listen to all sites for this user
+  // 1. Listen to ONLY sites belonging to this specific user ID
   useEffect(() => {
-    if (!user || !db) return;
-
-    // Reset state on user change to prevent data ghosting
-    setAllSites([]);
-    setSite(null);
+    if (!user?.uid || !db) return;
 
     const sitesQuery = query(collection(db, "sites"), where("userId", "==", user.uid));
     
@@ -47,37 +43,39 @@ function GuardianContent() {
       setSite(current || null);
       setLoading(false);
     }, (error) => {
+      console.error("Sites fetch error:", error);
       setLoading(false);
     });
 
     return () => unsubscribeSites();
   }, [user?.uid, selectedSiteId]);
 
-  // 2. Fetch events via API instead of direct Firestore to guarantee server-side filtering
+  // 2. Fetch events via SECURE API with Ownership verification
   useEffect(() => {
-    // SECURITY: Clear feed immediately whenever site, siteId, or user changes
+    // IMMEDIATE HARD WIPE: Prevents ghosting of previous user's data
     setIssues([]);
     setAuditEvents([]);
 
-    if (!site?.id || !user) {
+    if (!site?.id || !user?.uid) {
       return;
     }
 
     const fetchEvents = async () => {
       try {
-        const res = await fetch(`/api/agent/logs?siteId=${site.id}`);
+        // Pass both siteId AND userId to the server for ownership validation
+        const res = await fetch(`/api/agent/logs?siteId=${site.id}&userId=${user.uid}`);
         const data = await res.json();
         
-        // SECURITY: If the API returned an error or domain mismatch, wipe state
-        if (!data.events) {
+        if (!data.success || !data.events) {
+          console.warn("[Security] API rejected request or returned empty.");
           setIssues([]);
           setAuditEvents([]);
           return;
         }
 
-        const allEvents = data.events || [];
+        const allEvents = data.events;
 
-        // Filter for Issues
+        // Filter for Dashboard Issues
         const filteredIssues = allEvents.filter((e: any) => 
           ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
         );
@@ -91,7 +89,6 @@ function GuardianContent() {
     };
 
     fetchEvents();
-    // Re-fetch every 30 seconds for "Live" feel
     const interval = setInterval(fetchEvents, 30000);
     return () => clearInterval(interval);
   }, [site?.id, user?.uid]);
@@ -104,12 +101,13 @@ function GuardianContent() {
     );
   }
 
+  // FORCE: If no sites belong to this user, show the Add First Site screen
   if (!site && !loading) {
     return (
       <div className="p-8 text-center min-h-screen flex flex-col items-center justify-center">
         <Globe className="mx-auto text-gray-600 mb-4" size={48} />
-        <h1 className="text-2xl font-bold text-white mb-4">Connect a Domain</h1>
-        <p className="text-gray-400 mb-8 max-w-sm">No site is being monitored. Connect your first site in the Overview to activate the Guardian.</p>
+        <h1 className="text-2xl font-bold text-white mb-4">Welcome to Mojo Guardian</h1>
+        <p className="text-gray-400 mb-8 max-w-sm">This is a fresh account. Connect your first domain to begin autonomous monitoring.</p>
         <button 
           onClick={() => window.location.href = '/dashboard'}
           className="px-6 py-3 bg-terminal text-black font-bold rounded-xl hover:bg-green-400 transition-all"

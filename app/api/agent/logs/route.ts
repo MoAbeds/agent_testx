@@ -8,13 +8,15 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const siteId = searchParams.get('siteId');
-    const userId = searchParams.get('userId');
 
-    if (!siteId) {
-      return NextResponse.json({ events: [], message: "No siteId" });
-    }
+    if (!siteId) return NextResponse.json({ events: [] });
 
-    // Server-side filtering
+    // SERVER-SIDE GUARD: Check if site exists
+    const siteRef = doc(db, "sites", siteId);
+    const siteSnap = await getDoc(siteRef);
+    if (!siteSnap.exists()) return NextResponse.json({ events: [], error: 'NOT_FOUND' });
+
+    // Fetch ONLY events for this siteId
     const q = query(
       collection(db, "events"),
       where("siteId", "==", siteId),

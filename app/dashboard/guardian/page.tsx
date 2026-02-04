@@ -26,24 +26,19 @@ function GuardianContent() {
 
   const selectedSiteId = searchParams.get('siteId');
 
-  // 1. Fetch only sites that BELONG to this specific user
+  // 1. Fetch only sites that BELONG to this specific user ID
   useEffect(() => {
     if (!user?.uid || !db) return;
 
-    const sitesQuery = query(
-      collection(db, "sites"), 
-      where("userId", "==", user.uid)
-    );
+    const sitesQuery = query(collection(db, "sites"), where("userId", "==", user.uid));
     
     const unsubscribeSites = onSnapshot(sitesQuery, (snap) => {
-      const sites = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
-      // Re-filter locally to ensure Firestore's eventual consistency doesn't leak
-      const verifiedSites = sites.filter((s: any) => s.userId === user.uid);
-      setAllSites(verifiedSites);
+      const sites = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setAllSites(sites);
 
       const current = selectedSiteId 
-        ? verifiedSites.find((s: any) => s.id === selectedSiteId) 
-        : verifiedSites[0];
+        ? sites.find(s => s.id === selectedSiteId) 
+        : sites[0];
       
       setSite(current || null);
       setLoading(false);
@@ -54,45 +49,46 @@ function GuardianContent() {
     return () => unsubscribeSites();
   }, [user?.uid, selectedSiteId]);
 
-  // 2. Fetch events ONLY for the verified site belonging to the current user
+  // 2. Fetch events via SECURE API with Ownership verification
   useEffect(() => {
-    // 🔒 THE ULTIMATE MEMORY PURGE: 
-    // Clear state IMMEDIATELY when the effect runs to stop ghosting.
+    // SECURITY WIPE: Prevents ghosting of previous user's data
     setIssues([]);
     setAuditEvents([]);
 
-    if (!site?.id || !user?.uid || site.userId !== user.uid) {
-      if (!site?.id) setLoading(false);
+    if (!site?.id || !user?.uid) {
       return;
     }
 
-    const eventsQuery = query(
-      collection(db, "events"), 
-      where("siteId", "==", site.id),
-      limit(50)
-    );
+    const fetchEvents = async () => {
+      try {
+        // Pass both siteId AND userId to the server for ownership validation
+        const res = await fetch(`/api/agent/logs?siteId=${site.id}&userId=${user.uid}`);
+        const data = await res.json();
+        
+        if (!data.success || !data.events) {
+          setIssues([]);
+          setAuditEvents([]);
+          return;
+        }
 
-    const unsubscribeEvents = onSnapshot(eventsQuery, (snap) => {
-      const allEvents = snap.docs
-        .map(d => ({ id: d.id, ...d.data() } as any))
-        .filter((e: any) => e.siteId === site.id); // Hard secondary check
-      
-      const filteredIssues = allEvents.filter((e: any) => 
-        ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
-      );
+        const allEvents = data.events;
 
-      const sorted = allEvents.sort((a: any, b: any) => 
-        (b.occurredAt?.seconds || 0) - (a.occurredAt?.seconds || 0)
-      );
+        // Filter for Dashboard Issues
+        const filteredIssues = allEvents.filter((e: any) => 
+          ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
+        );
+        
+        setIssues(filteredIssues);
+        setAuditEvents(allEvents.slice(0, 20));
+      } catch (e) {
+        setIssues([]);
+        setAuditEvents([]);
+      }
+    };
 
-      setIssues(filteredIssues);
-      setAuditEvents(sorted.slice(0, 20));
-    }, (error) => {
-      setIssues([]);
-      setAuditEvents([]);
-    });
-
-    return () => unsubscribeEvents();
+    fetchEvents();
+    const interval = setInterval(fetchEvents, 30000);
+    return () => clearInterval(interval);
   }, [site?.id, user?.uid]);
 
   if (loading) {

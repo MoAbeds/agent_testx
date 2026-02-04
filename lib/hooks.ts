@@ -1,5 +1,5 @@
 import { auth, db } from "./firebase";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useEffect, useState } from "react";
 
@@ -15,21 +15,23 @@ export function useAuth() {
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
-        // SET USER IMMEDIATELY
+        // ⚡ OPTIMIZATION: Set user immediately to resolve loading state
         setUser(u);
         setLoading(false); 
 
-        // Then fetch profile in background
-        const userRef = doc(db, "users", u.uid);
-        onSnapshot(userRef, (snap) => {
+        // Sync Firestore profile in background (don't block the UI)
+        try {
+          const userRef = doc(db, "users", u.uid);
+          const snap = await getDoc(userRef);
           if (snap.exists()) {
             setUser({ ...u, ...snap.data() });
           }
-        });
+        } catch (e) {
+          console.error("[Auth] Profile sync failed:", e);
+        }
       } else {
-        // HARD WIPE on logout
         setUser(null);
         setLoading(false);
       }

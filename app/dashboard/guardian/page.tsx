@@ -11,7 +11,7 @@ import IndustryDeepDive from '@/components/IndustryDeepDive';
 import { Shield, Target, Search, Sparkles, Loader2, Zap, Globe } from 'lucide-react';
 import { useAuth } from '@/lib/hooks';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, limit } from 'firebase/firestore';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
@@ -26,11 +26,15 @@ function GuardianContent() {
 
   const selectedSiteId = searchParams.get('siteId');
 
-  // 1. Listen to ONLY sites belonging to this specific user ID
+  // 1. Unified Site Listener
   useEffect(() => {
     if (!user?.uid || !db) return;
 
-    const sitesQuery = query(collection(db, "sites"), where("userId", "==", user.uid));
+    const sitesQuery = query(
+      collection(db, "sites"), 
+      where("userId", "==", user.uid),
+      limit(20)
+    );
     
     const unsubscribeSites = onSnapshot(sitesQuery, (snap) => {
       const sites = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -43,55 +47,44 @@ function GuardianContent() {
       setSite(current || null);
       setLoading(false);
     }, (error) => {
-      console.error("Sites fetch error:", error);
       setLoading(false);
     });
 
     return () => unsubscribeSites();
   }, [user?.uid, selectedSiteId]);
 
-  // 2. Fetch events via SECURE API with Ownership verification
+  // 2. Optimized Event Listener (Local Filtering)
   useEffect(() => {
-    // IMMEDIATE HARD WIPE: Prevents ghosting of previous user's data
-    setIssues([]);
-    setAuditEvents([]);
-
     if (!site?.id || !user?.uid) {
+      setIssues([]);
+      setAuditEvents([]);
       return;
     }
 
-    const fetchEvents = async () => {
-      try {
-        // Pass both siteId AND userId to the server for ownership validation
-        const res = await fetch(`/api/agent/logs?siteId=${site.id}&userId=${user.uid}`);
-        const data = await res.json();
-        
-        if (!data.success || !data.events) {
-          console.warn("[Security] API rejected request or returned empty.");
-          setIssues([]);
-          setAuditEvents([]);
-          return;
-        }
+    const eventsQuery = query(
+      collection(db, "events"), 
+      where("siteId", "==", site.id),
+      limit(50)
+    );
 
-        const allEvents = data.events;
+    const unsubscribeEvents = onSnapshot(eventsQuery, (snap) => {
+      const allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      
+      // Filter & Sort in-memory for speed
+      const filtered = allEvents.filter((e: any) => 
+        ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
+      );
 
-        // Filter for Dashboard Issues
-        const filteredIssues = allEvents.filter((e: any) => 
-          ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
-        );
-        
-        setIssues(filteredIssues);
-        setAuditEvents(allEvents.slice(0, 20));
-      } catch (e) {
-        setIssues([]);
-        setAuditEvents([]);
-      }
-    };
+      const sorted = allEvents.sort((a: any, b: any) => 
+        (b.occurredAt?.seconds || 0) - (a.occurredAt?.seconds || 0)
+      );
 
-    fetchEvents();
-    const interval = setInterval(fetchEvents, 30000);
-    return () => clearInterval(interval);
-  }, [site?.id, user?.uid]);
+      setIssues(filtered);
+      setAuditEvents(sorted.slice(0, 20));
+    });
+
+    return () => unsubscribeEvents();
+  }, [site?.id]);
 
   if (loading) {
     return (
@@ -101,36 +94,25 @@ function GuardianContent() {
     );
   }
 
-  // FORCE: If no sites belong to this user, show the Add First Site screen
   if (!site && !loading) {
     return (
       <div className="p-8 text-center min-h-screen flex flex-col items-center justify-center">
         <Globe className="mx-auto text-gray-600 mb-4" size={48} />
-        <h1 className="text-2xl font-bold text-white mb-4">Welcome to Mojo Guardian</h1>
-        <p className="text-gray-400 mb-8 max-w-sm">This is a fresh account. Connect your first domain to begin autonomous monitoring.</p>
-        <button 
-          onClick={() => window.location.href = '/dashboard'}
-          className="px-6 py-3 bg-terminal text-black font-bold rounded-xl hover:bg-green-400 transition-all"
-        >
+        <h1 className="text-2xl font-bold text-white mb-4">Connect a Domain</h1>
+        <p className="text-gray-400 mb-8 max-w-sm">No site is being monitored. Add your first site in the Overview.</p>
+        <button onClick={() => window.location.href = '/dashboard'} className="px-6 py-3 bg-terminal text-black font-bold rounded-xl hover:bg-green-400 transition-all">
           Add First Site
         </button>
       </div>
     );
   }
 
+  // --- UI Extraction ---
   let keywords = { industry: 'N/A', topic: 'N/A', detailed: [], visibility: '0', authority: '0' };
-  if (site?.targetKeywords) {
-    try {
-      keywords = JSON.parse(site.targetKeywords);
-    } catch (e) {}
-  }
+  if (site?.targetKeywords) { try { keywords = JSON.parse(site.targetKeywords); } catch (e) {} }
 
-  let audit = { scores: { performance: 0, accessibility: 0, bestPractices: 0, seo: 0 }, metrics: { fcp: 'N/A', lcp: 'N/A', cls: 'N/A' } };
-  if (site?.lastAudit) {
-    try {
-      audit = JSON.parse(site.lastAudit);
-    } catch (e) {}
-  }
+  let audit = { scores: { performance: 0, accessibility: 0, bestPractices: 0, seo: 0 } };
+  if (site?.lastAudit) { try { audit = JSON.parse(site.lastAudit); } catch (e) {} }
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
@@ -143,7 +125,7 @@ function GuardianContent() {
             <h1 className="text-2xl md:text-4xl font-bold text-white font-serif tracking-tight">Mojo Guardian</h1>
           </div>
           <p className="text-sm md:text-base text-gray-400 max-w-xl">
-            Autonomous SEO infrastructure. Monitoring <span className="text-blue-400 font-mono">{site?.domain}</span> for threats and opportunities.
+            Autonomous SEO monitoring for <span className="text-blue-400 font-mono">{site?.domain}</span>.
           </p>
         </div>
 
@@ -154,7 +136,6 @@ function GuardianContent() {
                 <ScanButton domain={site?.domain} apiKey={site?.apiKey} />
               </div>
             </div>
-            
             <div className="flex gap-3">
               <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl px-3 py-2 md:px-4 md:py-3 flex items-center gap-3">
                   <Zap className={Number(audit.scores.performance) > 80 ? "text-terminal" : "text-yellow-500"} size={18} />
@@ -181,97 +162,17 @@ function GuardianContent() {
         </div>
       </header>
 
-      <section className="mb-12">
-        <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-800 rounded-2xl p-6 relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-10">
-            <Sparkles size={120} className="text-terminal" />
+      <div className="lg:col-span-2 space-y-10">
+        <IndustryDeepDive siteId={site?.id} />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          <div className="lg:col-span-2">
+            <GuardianIssues initialIssues={issues} siteId={site?.id} />
           </div>
-          
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-lg font-bold text-gray-100 flex items-center gap-2">
-                <Sparkles className="text-terminal" size={18} />
-                Market Intelligence
-              </h2>
-              <div className="flex items-center gap-3">
-                <AddKeywordButton siteId={site?.id} />
-                <ResearchButton siteId={site?.id} initialIndustry={keywords.industry !== 'N/A' ? keywords.industry : ''} />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-              <div>
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 block">Industry</span>
-                <span className="text-xl font-bold text-white capitalize">{keywords.industry}</span>
-              </div>
-              <div>
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 block">Niche/Topic</span>
-                <span className="text-xl font-bold text-terminal capitalize">{keywords.topic}</span>
-              </div>
-            </div>
-
-            <div className="bg-black/40 border border-gray-800 rounded-xl overflow-x-auto scrollbar-thin scrollbar-thumb-gray-800">
-              <table className="w-full text-left text-sm min-w-[800px]">
-                <thead className="bg-gray-900/50 text-gray-400 uppercase text-[10px] font-bold tracking-widest">
-                  <tr>
-                    <th className="p-4 whitespace-nowrap">High-Volume Keyword</th>
-                    <th className="p-4 whitespace-nowrap">Volume</th>
-                    <th className="p-4 whitespace-nowrap">Difficulty</th>
-                    <th className="p-4 whitespace-nowrap">Est. CPC</th>
-                    <th className="p-4 whitespace-nowrap">Relevance</th>
-                    <th className="p-4 whitespace-nowrap hidden md:table-cell">Competition</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800/50">
-                  {keywords.detailed && keywords.detailed.length > 0 ? (
-                    keywords.detailed.map((kw: any, i: number) => (
-                      <tr key={i} className="text-gray-300 hover:bg-white/5 transition-colors">
-                        <td className="p-4 font-medium whitespace-nowrap">{kw.keyword}</td>
-                        <td className="p-4 font-mono text-terminal">{Number(kw.results).toLocaleString()}</td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-12 h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                              <div 
-                                className={`h-full rounded-full ${Number(kw.difficulty) > 70 ? 'bg-red-500' : Number(kw.difficulty) > 40 ? 'bg-yellow-500' : 'bg-green-500'}`} 
-                                style={{ width: `${kw.difficulty || 0}%` }}
-                              />
-                            </div>
-                            <span className="text-[10px] font-mono text-gray-400">{kw.difficulty || 0}</span>
-                          </div>
-                        </td>
-                        <td className="p-4 font-mono text-gray-400">${Number(kw.cpc || 0).toFixed(2)}</td>
-                        <td className="p-4">
-                          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${kw.relevance === 'Market Match' ? 'text-green-500 bg-green-500/10' : 'text-blue-400 bg-blue-400/10'}`}>
-                            {kw.relevance}
-                          </span>
-                        </td>
-                        <td className="p-4 text-gray-500 hidden md:table-cell capitalize">{kw.competition?.toLowerCase().replace('_', ' ')}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={6} className="p-8 text-center text-gray-600 italic">
-                        No keyword data discovered.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+          <div>
+            <AuditFeed initialEvents={auditEvents} siteId={site?.id} />
           </div>
         </div>
-      </section>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        <div className="lg:col-span-2 space-y-10">
-          <IndustryDeepDive siteId={site?.id} />
-          <GuardianIssues initialIssues={issues} siteId={site?.id} />
-          <CompetitorWatchlist siteId={site?.id} />
-        </div>
-
-        <div>
-          <AuditFeed initialEvents={auditEvents} siteId={site?.id} />
-        </div>
+        <CompetitorWatchlist siteId={site?.id} />
       </div>
     </div>
   );
@@ -279,11 +180,7 @@ function GuardianContent() {
 
 export default function GuardianPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="animate-spin text-terminal" size={48} />
-      </div>
-    }>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-terminal" size={48} /></div>}>
       <GuardianContent />
     </Suspense>
   );

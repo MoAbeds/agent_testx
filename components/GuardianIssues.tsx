@@ -24,7 +24,7 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
     setIssues(initialIssues);
   }, [initialIssues]);
 
-  const isFreePlan = !user?.plan || user.plan === 'FREE';
+  const isFreePlan = user?.plan !== 'PRO';
 
   const fixAll404s = async () => {
     if (isFreePlan) {

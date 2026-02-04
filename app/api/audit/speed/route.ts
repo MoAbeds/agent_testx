@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from "@/lib/firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc, updateDoc } from "firebase/firestore";
 import { logEvent } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -8,11 +8,18 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const { siteId, url } = await req.json();
-    if (!siteId || !url) return NextResponse.json({ error: 'siteId and url required' }, { status: 400 });
+    if (!siteId) return NextResponse.json({ error: 'siteId required' }, { status: 400 });
 
+    const siteRef = doc(db, "sites", siteId);
+    const siteSnap = await getDoc(siteRef);
+    if (!siteSnap.exists()) return NextResponse.json({ error: 'Site not found' }, { status: 404 });
+    const siteData = siteSnap.data();
+
+    const targetUrl = url || `https://${siteData.domain}`;
     const psiKey = process.env.PAGESPEED_API_KEY;
-    // We'll use the public API if no key is provided, but it has lower limits
-    const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=mobile${psiKey ? `&key=${psiKey}` : ''}`;
+    
+    // We'll use the public API if no key is provided
+    const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(targetUrl)}&strategy=mobile${psiKey ? `&key=${psiKey}` : ''}`;
 
     const res = await fetch(apiUrl);
     const data = await res.json();
@@ -23,26 +30,29 @@ export async function POST(req: NextRequest) {
 
     const lh = data.lighthouseResult;
     const scores = {
-      performance: lh.categories.performance.score * 100,
-      accessibility: lh.categories.accessibility.score * 100,
-      bestPractices: lh.categories['best-practices'].score * 100,
-      seo: lh.categories.seo.score * 100,
+      performance: (lh.categories.performance?.score || 0) * 100,
+      accessibility: (lh.categories.accessibility?.score || 0) * 100,
+      bestPractices: (lh.categories['best-practices']?.score || 0) * 100,
+      seo: (lh.categories.seo?.score || 0) * 100,
     };
 
     const auditData = {
       scores,
       metrics: {
-        fcp: lh.audits['first-contentful-paint'].displayValue,
-        lcp: lh.audits['largest-contentful-paint'].displayValue,
-        cls: lh.audits['cumulative-layout-shift'].displayValue,
+        fcp: lh.audits['first-contentful-paint']?.displayValue || 'N/A',
+        lcp: lh.audits['largest-contentful-paint']?.displayValue || 'N/A',
+        cls: lh.audits['cumulative-layout-shift']?.displayValue || 'N/A',
       },
       updatedAt: new Date().toISOString()
     };
 
-    const siteRef = doc(db, "sites", siteId);
-    await updateDoc(siteRef, { lastAudit: JSON.stringify(auditData) });
+    await updateDoc(siteRef, { 
+      lastAudit: JSON.stringify(auditData),
+      // Update visibility/authority based on speed too
+      visibility: (500 + scores.seo * 5).toString() 
+    });
 
-    await logEvent(siteId, 'SPEED_AUDIT_COMPLETE', url, { scores });
+    await logEvent(siteId, 'SPEED_AUDIT_COMPLETE', targetUrl, { scores });
 
     return NextResponse.json({ success: true, audit: auditData });
   } catch (error: any) {

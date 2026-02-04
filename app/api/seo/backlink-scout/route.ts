@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
 
 export const dynamic = 'force-dynamic';
 
@@ -14,14 +14,20 @@ export async function POST(req: NextRequest) {
     // 1. Find competitors tracked for this site
     const compQ = query(collection(db, "events"), where("siteId", "==", siteId), where("type", "==", "COMPETITOR_INTEL"));
     const compSnap = await getDocs(compQ);
-    const competitors = compSnap.docs.map(d => JSON.parse(d.data().details).domain);
+    
+    // Get unique domains from the details
+    const competitors = compSnap.docs.map(d => {
+      try { return JSON.parse(d.data().details).domain; } catch(e) { return null; }
+    }).filter(Boolean);
 
-    if (competitors.length === 0) return NextResponse.json({ error: 'No competitors tracked yet' }, { status: 400 });
+    if (competitors.length === 0) {
+      return NextResponse.json({ error: 'No competitors in watchlist yet.' }, { status: 400 });
+    }
 
     let scoutCount = 0;
 
-    // 2. Scout for backlink mentions (Simplified logic for Phase 3.1)
-    for (const domain of competitors.slice(0, 2)) {
+    // 2. Scout for backlink mentions
+    for (const domain of competitors.slice(0, 3)) {
       const response = await fetch('https://google.serper.dev/search', {
         method: 'POST',
         headers: { 'X-API-KEY': serperKey || '', 'Content-Type': 'application/json' },

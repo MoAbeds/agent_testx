@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { logEvent } from '@/lib/db';
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_KEY || '');
 
@@ -35,13 +34,16 @@ Analyze these keywords and existing pages. Identify 3 massive "Content Gaps" (to
 Keywords: [${keywords.map(k => k.keyword).join(', ')}]
 Existing Paths: [${existingPaths.join(', ')}]
 
-Return ONLY JSON: {"gaps": [{"topic": "...", "targetKeyword": "...", "suggestedPath": "...", "reasoning": "..."}]}`;
+Return ONLY JSON array of objects: [{"topic": "...", "targetKeyword": "...", "suggestedPath": "...", "reasoning": "..."}]`;
 
     const result = await model.generateContent(prompt);
-    const gapsData = JSON.parse(result.response.text().replace(/```json|```/g, '').trim());
+    let text = result.response.text().trim();
+    if (text.includes('```')) text = text.replace(/```json|```/g, '').trim();
+    
+    const gaps = JSON.parse(text);
 
     let count = 0;
-    for (const gap of gapsData.gaps) {
+    for (const gap of (Array.isArray(gaps) ? gaps : gaps.gaps || [])) {
       await addDoc(collection(db, "events"), {
         siteId,
         type: 'CONTENT_GAP',
@@ -54,6 +56,7 @@ Return ONLY JSON: {"gaps": [{"topic": "...", "targetKeyword": "...", "suggestedP
 
     return NextResponse.json({ success: true, gapsFound: count });
   } catch (error: any) {
+    console.error("Gap Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

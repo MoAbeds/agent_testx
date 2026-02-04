@@ -6,7 +6,8 @@ import ResearchButton from '@/components/ResearchButton';
 import AddKeywordButton from '@/components/AddKeywordButton';
 import SiteManager from '@/components/SiteManager';
 import ScanButton from '@/components/ScanButton';
-import { Shield, Target, Search, Sparkles, Loader2 } from 'lucide-react';
+import CompetitorWatchlist from '@/components/CompetitorWatchlist';
+import { Shield, Target, Search, Sparkles, Loader2, Globe } from 'lucide-react';
 import { useAuth } from '@/lib/hooks';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -242,8 +243,9 @@ function GuardianContent() {
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-10">
           <GuardianIssues initialIssues={issues} siteId={site.id} />
+          <CompetitorWatchlist siteId={site.id} />
         </div>
 
         <div>

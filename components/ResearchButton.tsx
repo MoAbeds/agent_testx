@@ -2,14 +2,19 @@
 
 import { useState } from 'react';
 import { Search, RefreshCw, X } from 'lucide-react';
+import Toast from './Toast';
 
 export default function ResearchButton({ siteId, initialIndustry }: { siteId: string, initialIndustry?: string }) {
   const [loading, setLoading] = useState(false);
   const [industry, setIndustry] = useState(initialIndustry || '');
   const [showInput, setShowInput] = useState(false);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const runResearch = async () => {
-    if (!industry.trim()) return alert("Please provide some industry context or description.");
+    if (!industry.trim()) {
+      setNotification({ message: "Please provide some industry context.", type: "info" });
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch('/api/sites/keywords', {
@@ -19,14 +24,14 @@ export default function ResearchButton({ siteId, initialIndustry }: { siteId: st
       });
       const data = await res.json();
       if (data.success) {
-        alert("Site research complete! Market Intelligence updated.");
+        setNotification({ message: "Site research complete! Market Intelligence updated.", type: "success" });
         setShowInput(false);
       } else {
-        alert(`Research failed: ${data.error || 'Unknown error'}`);
+        setNotification({ message: `Research failed: ${data.error || 'Unknown error'}`, type: "error" });
       }
     } catch (e) {
       console.error(e);
-      alert("Network error: Could not reach the research API.");
+      setNotification({ message: "Network error: Could not reach the research API.", type: "error" });
     } finally {
       setLoading(false);
     }
@@ -69,6 +74,14 @@ export default function ResearchButton({ siteId, initialIndustry }: { siteId: st
           {loading ? <RefreshCw className="animate-spin" size={12} /> : <Search size={12} />}
           Research Site
         </button>
+      )}
+
+      {notification && (
+        <Toast 
+          message={notification.message} 
+          type={notification.type} 
+          onClose={() => setNotification(null)} 
+        />
       )}
     </div>
   );

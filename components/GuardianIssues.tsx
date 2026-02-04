@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ShieldAlert, CheckCircle, ArrowRight, Wand2, RefreshCw, Sparkles } from 'lucide-react';
+import Toast from './Toast';
 
 interface Issue {
   id: string;
@@ -14,6 +15,7 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
   const [issues, setIssues] = useState(initialIssues);
   const [loading, setLoading] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   // Sync state when props change (real-time updates from parent)
   useEffect(() => {
@@ -30,17 +32,16 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
       });
       const data = await res.json();
       if (data.success) {
-        if (data.message) {
-          alert(data.message);
-        } else {
-          alert(`Success! Auto-fixed ${data.fixesApplied} broken links. Check the Audit Trail.`);
-        }
+        const msg = data.message || `Success! Auto-fixed ${data.fixesApplied} broken links. Check the Audit Trail.`;
+        setNotification({ message: msg, type: 'success' });
         setIssues(issues.filter(i => i.type !== '404_DETECTED'));
       } else {
-        alert(`Error: ${data.error || 'The AI could not process the fixes.'}`);
+        const msg = data.error || 'The AI could not process the fixes.';
+        setNotification({ message: msg, type: 'error' });
       }
     } catch (e) {
       console.error(e);
+      setNotification({ message: "Network error while fixing 404s.", type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -56,12 +57,15 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
       });
       const data = await res.json();
       if (data.success) {
-        alert(`Successfully optimized ${data.appliedFixes} pages! Check the Audit Trail below.`);
+        setNotification({ 
+          message: `Successfully optimized ${data.appliedFixes} pages! Check the Audit Trail below.`,
+          type: 'success'
+        });
         setIssues(issues.filter(i => i.type !== 'SEO_GAP'));
       }
     } catch (e) {
       console.error(e);
-      alert("Bulk optimization failed.");
+      setNotification({ message: "Bulk optimization failed.", type: 'error' });
     } finally {
       setOptimizing(false);
     }
@@ -130,6 +134,14 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
           ))
         )}
       </div>
+
+      {notification && (
+        <Toast 
+          message={notification.message} 
+          type={notification.type} 
+          onClose={() => setNotification(null)} 
+        />
+      )}
     </div>
   );
 }

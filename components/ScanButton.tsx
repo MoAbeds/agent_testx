@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Loader2, Search, CheckCircle, XCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Toast from './Toast';
 
 interface ScanButtonProps {
   domain: string;
@@ -12,6 +13,7 @@ interface ScanButtonProps {
 export default function ScanButton({ domain, apiKey }: ScanButtonProps) {
   const [status, setStatus] = useState<'idle' | 'scanning' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const router = useRouter();
 
   const handleScan = async () => {
@@ -35,14 +37,19 @@ export default function ScanButton({ domain, apiKey }: ScanButtonProps) {
       }
 
       setStatus('success');
-      alert(`Scan complete! Discovered and analyzed ${data.pagesCrawled} pages.`);
+      setNotification({ 
+        message: `Scan complete! Discovered and analyzed ${data.pagesCrawled} pages.`,
+        type: 'success'
+      });
       router.refresh(); // Refresh the page to show new data
       
       // Reset to idle after 2 seconds
       setTimeout(() => setStatus('idle'), 2000);
     } catch (error) {
       setStatus('error');
-      setErrorMessage(error instanceof Error ? error.message : 'Scan failed');
+      const msg = error instanceof Error ? error.message : 'Scan failed';
+      setErrorMessage(msg);
+      setNotification({ message: msg, type: 'error' });
       
       // Reset to idle after 3 seconds
       setTimeout(() => {
@@ -91,6 +98,14 @@ export default function ScanButton({ domain, apiKey }: ScanButtonProps) {
       </button>
       {errorMessage && (
         <p className="text-xs text-red-400 mt-1.5 text-center">{errorMessage}</p>
+      )}
+
+      {notification && (
+        <Toast 
+          message={notification.message} 
+          type={notification.type} 
+          onClose={() => setNotification(null)} 
+        />
       )}
     </div>
   );

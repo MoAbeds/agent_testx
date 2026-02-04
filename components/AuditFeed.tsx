@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { History, RotateCcw, Check, RefreshCw } from 'lucide-react';
+import { useAuth } from '@/lib/hooks';
 
 interface Event {
   id: string;
@@ -9,16 +10,22 @@ interface Event {
   path: string;
   details: string | null;
   occurredAt: any;
+  siteId: string;
 }
 
 export default function AuditFeed({ initialEvents, siteId }: { initialEvents: Event[], siteId: string }) {
-  const [events, setEvents] = useState(initialEvents);
+  const { user } = useAuth();
+  const [events, setEvents] = useState<Event[]>([]);
   const [undoing, setUndoing] = useState<string | null>(null);
 
-  // Sync state when props change (real-time updates from parent)
+  // Sync state when props change
   useEffect(() => {
-    setEvents(initialEvents);
-  }, [initialEvents]);
+    // SECURITY: Only show events that match the current siteId and clear others
+    if (initialEvents) {
+      const filtered = initialEvents.filter(e => e.siteId === siteId);
+      setEvents(filtered);
+    }
+  }, [initialEvents, siteId]);
 
   const undoAction = async (eventId: string, details: string | null) => {
     if (!details) return;
@@ -26,7 +33,7 @@ export default function AuditFeed({ initialEvents, siteId }: { initialEvents: Ev
       const parsed = JSON.parse(details);
       const ruleId = parsed.ruleId;
       if (!ruleId) {
-        alert("This action cannot be undone automatically (no ruleId found).");
+        alert("This action cannot be undone automatically.");
         return;
       }
 
@@ -39,7 +46,6 @@ export default function AuditFeed({ initialEvents, siteId }: { initialEvents: Ev
       
       const data = await res.json();
       if (data.success) {
-        // Update local state to show it was undone
         setEvents(events.map(e => e.id === eventId ? { ...e, type: 'UNDO_ACTION' } : e));
       } else {
         alert(data.error || "Undo failed.");
@@ -64,7 +70,7 @@ export default function AuditFeed({ initialEvents, siteId }: { initialEvents: Ev
       <div className="divide-y divide-gray-800/50 max-h-[500px] overflow-y-auto">
         {events.length === 0 ? (
           <div className="p-8 text-center text-gray-600 text-sm italic">
-            No actions recorded yet.
+            No actions recorded for this site.
           </div>
         ) : (
           events.map((event) => {
@@ -86,10 +92,10 @@ export default function AuditFeed({ initialEvents, siteId }: { initialEvents: Ev
                       }`}>
                         {event.type.replace('_', ' ')}
                       </span>
-                      <span className="text-xs font-mono text-gray-400">{event.path}</span>
+                      <span className="text-xs font-mono text-gray-400 truncate max-w-[100px]">{event.path}</span>
                     </div>
                     <p className="text-xs text-gray-500">
-                      {event.details ? JSON.parse(event.details).message : 'Action processed by Mojo Agent'}
+                      {event.details ? JSON.parse(event.details).message || 'Action processed' : 'Action processed by Mojo Agent'}
                     </p>
                   </div>
                 </div>

@@ -11,7 +11,7 @@ import IndustryDeepDive from '@/components/IndustryDeepDive';
 import { Shield, Target, Search, Sparkles, Loader2, Zap, Globe } from 'lucide-react';
 import { useAuth } from '@/lib/hooks';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, limit, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, limit } from 'firebase/firestore';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
@@ -26,11 +26,11 @@ function GuardianContent() {
 
   const selectedSiteId = searchParams.get('siteId');
 
-  // 1. Fetch only sites that BELONG to this user
+  // 1. Fetch only sites that BELONG to this specific user
   useEffect(() => {
     if (!user?.uid || !db) return;
 
-    // Reset everything when user changes
+    // HARD WIPE: Kill any previous account data from memory immediately
     setAllSites([]);
     setSite(null);
     setIssues([]);
@@ -45,7 +45,7 @@ function GuardianContent() {
       const sites = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setAllSites(sites);
 
-      // Verify that the selected site actually belongs to this user
+      // Verify that the site actually belongs to this user
       const current = selectedSiteId 
         ? sites.find(s => s.id === selectedSiteId) 
         : sites[0];
@@ -53,6 +53,7 @@ function GuardianContent() {
       setSite(current || null);
       setLoading(false);
     }, (error) => {
+      console.error("[Guardian] Site listener error:", error);
       setLoading(false);
     });
 
@@ -61,13 +62,13 @@ function GuardianContent() {
 
   // 2. Fetch events ONLY for the verified site
   useEffect(() => {
-    // SECURITY: If site changes, kill previous data immediately
+    // SECURITY: Immediate wipe if site changes
     setIssues([]);
     setAuditEvents([]);
 
     if (!site?.id || !user?.uid) return;
 
-    // Direct filter on siteId ensures we don't grab global data
+    // Direct filter on siteId + limit
     const eventsQuery = query(
       collection(db, "events"), 
       where("siteId", "==", site.id),
@@ -75,7 +76,10 @@ function GuardianContent() {
     );
 
     const unsubscribeEvents = onSnapshot(eventsQuery, (snap) => {
-      const allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Secondary filter in JS just to be 1000% sure no global data snuck in
+      const allEvents = snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as any))
+        .filter(e => e.siteId === site.id);
       
       const filtered = allEvents.filter((e: any) => 
         ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
@@ -87,6 +91,8 @@ function GuardianContent() {
 
       setIssues(filtered);
       setAuditEvents(sorted.slice(0, 20));
+    }, (error) => {
+      console.error("[Guardian] Event listener error:", error);
     });
 
     return () => unsubscribeEvents();
@@ -113,7 +119,7 @@ function GuardianContent() {
     );
   }
 
-  // --- UI Extraction ---
+  // UI Extraction
   let keywords = { industry: 'N/A', topic: 'N/A', detailed: [], visibility: '0', authority: '0' };
   if (site?.targetKeywords) { try { keywords = JSON.parse(site.targetKeywords); } catch (e) {} }
 

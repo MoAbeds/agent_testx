@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { FileBarChart, AlertTriangle, CheckCircle, FileText, Download, RefreshCw, TrendingUp, Target, Loader2, ShieldCheck } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -19,9 +20,12 @@ interface ReportData {
   optimizedCount: number;
   opportunities: Opportunity[];
   generatedAt: string;
+  siteDetails?: any;
 }
 
-export default function ReportsPage() {
+function ReportsContent() {
+  const searchParams = useSearchParams();
+  const siteId = searchParams.get('siteId');
   const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -32,7 +36,8 @@ export default function ReportsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/reports/summary');
+      const url = siteId ? `/api/reports/summary?siteId=${siteId}` : '/api/reports/summary';
+      const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch report');
       const json = await res.json();
       setData(json);
@@ -63,7 +68,7 @@ export default function ReportsPage() {
       });
       
       pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
-      pdf.save(`Mojo-SEO-Report-${new Date().toISOString().split('T')[0]}.pdf`);
+      pdf.save(`Mojo-SEO-Report-${data.siteDetails?.domain || 'All-Sites'}-${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (err) {
       console.error('PDF Export failed:', err);
       alert('Failed to generate PDF. Please try again.');
@@ -74,7 +79,7 @@ export default function ReportsPage() {
 
   useEffect(() => {
     fetchReport();
-  }, []);
+  }, [siteId]);
 
   const getHealthColor = (score: number) => {
     if (score >= 80) return '#22c55e'; // green
@@ -96,10 +101,10 @@ export default function ReportsPage() {
         <div>
           <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3 font-serif">
             <FileBarChart className="text-terminal" size={32} />
-            SEO Reports
+            {data?.siteDetails?.domain ? `${data.siteDetails.domain} Audit` : 'SEO Reports'}
           </h1>
           <p className="text-gray-400 text-sm md:text-base">
-            Site health analysis and optimization opportunities
+            Autonomous SEO health analysis and AI remediation trail.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -220,18 +225,18 @@ export default function ReportsPage() {
               title="Optimization Rate"
               description={
                 data.pagesScanned > 0
-                  ? `${Math.round((data.optimizedCount / Math.max(data.issuesFound, 1)) * 100)}% of issues have active rules`
+                  ? `${Math.round((data.optimizedCount / Math.max(data.issuesFound, 1)) * 100)}% of issues have active Mojo rules`
                   : 'No pages scanned yet'
               }
               color="#8b5cf6"
             />
             <InsightCard
               icon={Target}
-              title="Coverage"
+              title="Authority Rank"
               description={
-                data.pagesScanned > 0
-                  ? `${data.pagesScanned} pages analyzed across your sites`
-                  : 'Scan your sites to analyze pages'
+                data.siteDetails 
+                  ? `Your domain is ranked at ${data.siteDetails.authority || 'N/A'}/100 in its niche.`
+                  : `Analyzed ${data.pagesScanned} pages across your connected sites.`
               }
               color="#06b6d4"
             />
@@ -243,10 +248,10 @@ export default function ReportsPage() {
               <div>
                 <h2 className="text-lg font-bold text-white flex items-center gap-2 font-serif">
                   <AlertTriangle className="text-amber-500" size={20} />
-                  Remediation Opportunities
+                  Strategic Remediation Trail
                 </h2>
                 <p className="text-xs text-gray-500 mt-1">
-                  High-priority paths requiring AI intervention
+                  High-priority paths requiring Mojo AI intervention
                 </p>
               </div>
               <span className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">{data.opportunities.length} Items</span>
@@ -287,7 +292,7 @@ export default function ReportsPage() {
                         </div>
                       </div>
                       <button 
-                        onClick={() => window.location.href = '/dashboard/guardian'}
+                        onClick={() => window.location.href = `/dashboard/guardian?siteId=${siteId || ''}`}
                         className="opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest bg-white/5 text-gray-400 border border-white/10 hover:text-white hover:bg-white/10"
                       >
                         Fix
@@ -300,11 +305,23 @@ export default function ReportsPage() {
           </div>
 
           <div className="text-center text-[10px] font-bold uppercase tracking-widest text-gray-700 py-4 border-t border-gray-800/30">
-            Audit Generated: {new Date(data.generatedAt).toLocaleString()} • Mojo Guardian v1.2
+            Audit Generated: {new Date(data.generatedAt).toLocaleString()} • Mojo Guardian v1.2.9
           </div>
         </div>
       ) : null}
     </main>
+  );
+}
+
+export default function ReportsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="animate-spin text-terminal" size={48} />
+      </div>
+    }>
+      <ReportsContent />
+    </Suspense>
   );
 }
 

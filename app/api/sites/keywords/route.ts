@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { logEvent } from '@/lib/db';
 import axios from 'axios';
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_KEY || '');

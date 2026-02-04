@@ -7,7 +7,7 @@ import AddKeywordButton from '@/components/AddKeywordButton';
 import SiteManager from '@/components/SiteManager';
 import ScanButton from '@/components/ScanButton';
 import CompetitorWatchlist from '@/components/CompetitorWatchlist';
-import { Shield, Target, Search, Sparkles, Loader2 } from 'lucide-react';
+import { Shield, Target, Search, Sparkles, Loader2, Globe } from 'lucide-react';
 import { useAuth } from '@/lib/hooks';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -63,7 +63,7 @@ function GuardianContent() {
       
       // Filter for Issues
       const filteredIssues = allEvents.filter((e: any) => 
-        ["404_DETECTED", "SEO_GAP"].includes(e.type)
+        ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
       );
 
       // Sort by occurredAt (Manual in-memory sort to bypass index requirement)
@@ -266,25 +266,4 @@ export default function GuardianPage() {
       <GuardianContent />
     </Suspense>
   );
-}
-
-function Globe(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <line x1="2" y1="12" x2="22" y2="12" />
-      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-    </svg>
-  )
 }

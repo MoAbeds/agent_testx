@@ -51,9 +51,13 @@ function GuardianContent() {
 
   // 2. Listen to issues (404s, Gaps) for the selected site
   useEffect(() => {
-    if (!site?.id || !db) return;
+    if (!site?.id || !db) {
+      setIssues([]);
+      setAuditEvents([]);
+      return;
+    }
 
-    // Use a simple query to avoid composite index requirements
+    // Explicitly filter by siteId to prevent cross-account leak
     const issuesQuery = query(
       collection(db, "events"), 
       where("siteId", "==", site.id)
@@ -103,10 +107,16 @@ function GuardianContent() {
 
   if (!site) {
     return (
-      <div className="p-8 text-center">
+      <div className="p-8 text-center min-h-screen flex flex-col items-center justify-center">
         <Globe className="mx-auto text-gray-600 mb-4" size={48} />
-        <h1 className="text-2xl font-bold text-white mb-4">No Site Found</h1>
-        <p className="text-gray-400">Please connect a site in the Overview first.</p>
+        <h1 className="text-2xl font-bold text-white mb-4">Connect a Domain</h1>
+        <p className="text-gray-400 mb-8 max-w-sm">No site is being monitored. Connect your first site in the Overview to activate the Guardian.</p>
+        <button 
+          onClick={() => window.location.href = '/dashboard'}
+          className="px-6 py-3 bg-terminal text-black font-bold rounded-xl hover:bg-green-400 transition-all"
+        >
+          Add First Site
+        </button>
       </div>
     );
   }

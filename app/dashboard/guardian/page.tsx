@@ -30,7 +30,9 @@ function GuardianContent() {
   useEffect(() => {
     if (!user || !db) return;
 
+    // SECURITY: Ensure we ONLY query sites where userId matches current user
     const sitesQuery = query(collection(db, "sites"), where("userId", "==", user.uid));
+    
     const unsubscribeSites = onSnapshot(sitesQuery, (snap) => {
       const sites = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setAllSites(sites);
@@ -51,13 +53,22 @@ function GuardianContent() {
 
   // 2. Listen to issues (404s, Gaps) for the selected site
   useEffect(() => {
-    if (!site?.id || !db) {
-      setIssues([]);
-      setAuditEvents([]);
+    // SECURITY: Clear feed immediately if site changes or is missing
+    setIssues([]);
+    setAuditEvents([]);
+
+    if (!site?.id || !db || !user) {
+      if (!site?.id) setLoading(false);
       return;
     }
 
-    // Explicitly filter by siteId to prevent cross-account leak
+    // EXTRA SECURITY: Ensure the site being queried actually belongs to the user
+    if (site.userId !== user.uid) {
+      console.error("Security Block: Site mismatch");
+      setSite(null);
+      return;
+    }
+
     const issuesQuery = query(
       collection(db, "events"), 
       where("siteId", "==", site.id)
@@ -66,12 +77,10 @@ function GuardianContent() {
     const unsubscribeIssues = onSnapshot(issuesQuery, (snap) => {
       const allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       
-      // Filter for Issues
       const filteredIssues = allEvents.filter((e: any) => 
         ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
       );
 
-      // Sort by occurredAt (Manual in-memory sort to bypass index requirement)
       const sortedIssues = filteredIssues.sort((a: any, b: any) => {
         const tA = a.occurredAt?.seconds || 0;
         const tB = b.occurredAt?.seconds || 0;
@@ -80,7 +89,6 @@ function GuardianContent() {
 
       setIssues(sortedIssues);
       
-      // Update Audit Trail (Top 20 any events)
       const sortedAudit = allEvents.sort((a: any, b: any) => {
         const tA = a.occurredAt?.seconds || 0;
         const tB = b.occurredAt?.seconds || 0;
@@ -95,7 +103,7 @@ function GuardianContent() {
     });
 
     return () => unsubscribeIssues();
-  }, [site?.id]);
+  }, [site?.id, user?.uid]);
 
   if (loading) {
     return (
@@ -109,8 +117,8 @@ function GuardianContent() {
     return (
       <div className="p-8 text-center min-h-screen flex flex-col items-center justify-center">
         <Globe className="mx-auto text-gray-600 mb-4" size={48} />
-        <h1 className="text-2xl font-bold text-white mb-4">Connect a Domain</h1>
-        <p className="text-gray-400 mb-8 max-w-sm">No site is being monitored. Connect your first site in the Overview to activate the Guardian.</p>
+        <h1 className="text-2xl font-bold text-white mb-4">Mojo Guardian</h1>
+        <p className="text-gray-400 mb-8 max-w-sm">No site found for this account. Go to the Overview to connect your first domain.</p>
         <button 
           onClick={() => window.location.href = '/dashboard'}
           className="px-6 py-3 bg-terminal text-black font-bold rounded-xl hover:bg-green-400 transition-all"
@@ -121,7 +129,6 @@ function GuardianContent() {
     );
   }
 
-  // Extract keywords if present
   let keywords = { industry: 'N/A', topic: 'N/A', detailed: [], visibility: '0', authority: '0' };
   if (site.targetKeywords) {
     try {
@@ -129,7 +136,6 @@ function GuardianContent() {
     } catch (e) {}
   }
 
-  // Extract audit data if present
   let audit = { scores: { performance: 0, accessibility: 0, bestPractices: 0, seo: 0 }, metrics: { fcp: 'N/A', lcp: 'N/A', cls: 'N/A' } };
   if (site.lastAudit) {
     try {
@@ -186,7 +192,6 @@ function GuardianContent() {
         </div>
       </header>
 
-      {/* Keywords & AI Context Section */}
       <section className="mb-12">
         <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-800 rounded-2xl p-6 relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 opacity-10">
@@ -257,7 +262,7 @@ function GuardianContent() {
                   ) : (
                     <tr>
                       <td colSpan={6} className="p-8 text-center text-gray-600 italic">
-                        No keyword data discovered. Click "Research Site" above.
+                        No keyword data discovered.
                       </td>
                     </tr>
                   )}

@@ -77,7 +77,7 @@ Return ONLY JSON: { "industry": "...", "topic": "...", "queries": ["...", "..."]
     }
 
     const keywordList = Array.from(rawKeywords)
-      .map(kw => kw.replace(/[?¿!¡]/g, '').trim()) // Strip punctuation for DataForSEO
+      .map(kw => kw.replace(/[^a-zA-Z0-9\s]/g, '').trim()) // Strip ALL non-alphanumeric chars except spaces
       .filter(kw => kw.length > 2)
       .slice(0, 20);
     const detailedKeywords: any[] = [];

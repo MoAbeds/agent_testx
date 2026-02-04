@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     // 1. Get all pages for this site
     const pagesQ = query(collection(db, "pages"), where("siteId", "==", siteId));
     const pagesSnap = await getDocs(pagesQ);
-    const pages = pagesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const pages = pagesSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
 
     if (pages.length < 2) return NextResponse.json({ success: true, message: 'Need more pages for linking' });
 

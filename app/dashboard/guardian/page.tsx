@@ -26,47 +26,43 @@ function GuardianContent() {
 
   const selectedSiteId = searchParams.get('siteId');
 
-  // 1. Unified Site Listener (Strict Owner Filter)
+  // 1. Fetch only sites that BELONG to this specific user
   useEffect(() => {
     if (!user?.uid || !db) return;
 
     const sitesQuery = query(
       collection(db, "sites"), 
-      where("userId", "==", user.uid),
-      limit(20)
+      where("userId", "==", user.uid)
     );
     
     const unsubscribeSites = onSnapshot(sitesQuery, (snap) => {
       const sites = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
-      setAllSites(sites);
+      // Re-filter locally to ensure Firestore's eventual consistency doesn't leak
+      const verifiedSites = sites.filter((s: any) => s.userId === user.uid);
+      setAllSites(verifiedSites);
 
       const current = selectedSiteId 
-        ? sites.find((s: any) => s.id === selectedSiteId) 
-        : sites[0];
+        ? verifiedSites.find((s: any) => s.id === selectedSiteId) 
+        : verifiedSites[0];
       
       setSite(current || null);
       setLoading(false);
     }, (error) => {
-      console.error("Sites fetch error:", error);
       setLoading(false);
     });
 
     return () => unsubscribeSites();
   }, [user?.uid, selectedSiteId]);
 
-  // 2. Optimized Event Listener (Strict Site Filter)
+  // 2. Fetch events ONLY for the verified site belonging to the current user
   useEffect(() => {
-    // 🔒 THE MEMORY PURGE: Clear state immediately if site or user changes
+    // 🔒 THE ULTIMATE MEMORY PURGE: 
+    // Clear state IMMEDIATELY when the effect runs to stop ghosting.
     setIssues([]);
     setAuditEvents([]);
 
-    if (!site?.id || !user?.uid) {
-      return;
-    }
-
-    // Secondary safety: If this site doesn't belong to the user, block.
-    if (site.userId !== user.uid) {
-      setSite(null);
+    if (!site?.id || !user?.uid || site.userId !== user.uid) {
+      if (!site?.id) setLoading(false);
       return;
     }
 
@@ -77,21 +73,23 @@ function GuardianContent() {
     );
 
     const unsubscribeEvents = onSnapshot(eventsQuery, (snap) => {
-      const allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+      const allEvents = snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as any))
+        .filter((e: any) => e.siteId === site.id); // Hard secondary check
       
-      // 🔒 Triple-Check: Re-filter in JS to ensure Firestore didn't slip global data
-      const verifiedEvents = allEvents.filter((e: any) => e.siteId === site.id);
-
-      const filteredIssues = verifiedEvents.filter((e: any) => 
+      const filteredIssues = allEvents.filter((e: any) => 
         ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
       );
 
-      const sorted = verifiedEvents.sort((a: any, b: any) => 
+      const sorted = allEvents.sort((a: any, b: any) => 
         (b.occurredAt?.seconds || 0) - (a.occurredAt?.seconds || 0)
       );
 
       setIssues(filteredIssues);
       setAuditEvents(sorted.slice(0, 20));
+    }, (error) => {
+      setIssues([]);
+      setAuditEvents([]);
     });
 
     return () => unsubscribeEvents();
@@ -109,10 +107,10 @@ function GuardianContent() {
     return (
       <div className="p-8 text-center min-h-screen flex flex-col items-center justify-center">
         <Globe className="mx-auto text-gray-600 mb-4" size={48} />
-        <h1 className="text-2xl font-bold text-white mb-4">Connect a Domain</h1>
-        <p className="text-gray-400 mb-8 max-w-sm">This is a private dashboard. Add your first site in the Overview.</p>
+        <h1 className="text-2xl font-bold text-white mb-4">Connect First Domain</h1>
+        <p className="text-gray-400 mb-8 max-w-sm">No site found for this account. Mojo is locked until you connect a domain in the Overview.</p>
         <button onClick={() => window.location.href = '/dashboard'} className="px-6 py-3 bg-terminal text-black font-bold rounded-xl hover:bg-green-400 transition-all">
-          Connect First Site
+          Go to Overview
         </button>
       </div>
     );

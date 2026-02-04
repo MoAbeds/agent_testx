@@ -14,13 +14,15 @@ interface Event {
 }
 
 export default function AuditFeed({ initialEvents, siteId }: { initialEvents: Event[], siteId: string }) {
+  const { user } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [undoing, setUndoing] = useState<string | null>(null);
 
   // Sync state when props change
   useEffect(() => {
     // 🔒 THE ULTIMATE GUARD: Never allow data into state if it doesn't match the current siteId
-    if (initialEvents && siteId) {
+    // This stops "ghost" data from appearing during transitions.
+    if (initialEvents && initialEvents.length > 0 && siteId) {
       const filtered = initialEvents.filter(e => e.siteId === siteId);
       setEvents(filtered);
     } else {
@@ -59,13 +61,13 @@ export default function AuditFeed({ initialEvents, siteId }: { initialEvents: Ev
           <History size={16} className="text-gray-400" />
           Audit Trail
         </h3>
-        <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Secure</span>
+        <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Secure Feed</span>
       </div>
 
       <div className="divide-y divide-gray-800/50 max-h-[500px] overflow-y-auto">
         {events.length === 0 ? (
           <div className="p-8 text-center text-gray-600 text-sm italic">
-            No events found for this site.
+            No events discovered for this site.
           </div>
         ) : (
           events.map((event) => {
@@ -94,7 +96,7 @@ export default function AuditFeed({ initialEvents, siteId }: { initialEvents: Ev
                       <span className="text-xs font-mono text-gray-400 truncate max-w-[100px]">{event.path}</span>
                     </div>
                     <p className="text-xs text-gray-500">
-                      {event.details ? (JSON.parse(event.details).message || 'Processed') : 'Processed'}
+                      {event.details ? (JSON.parse(typeof event.details === 'string' ? event.details : JSON.stringify(event.details)).message || 'Processed') : 'Action processed'}
                     </p>
                   </div>
                 </div>

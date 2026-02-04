@@ -1,3 +1,5 @@
+'use client';
+
 import { auth } from "@/lib/firebase";
 import { 
   GoogleAuthProvider, 
@@ -32,11 +34,12 @@ function LoginContent() {
     provider.setCustomParameters({ prompt: 'select_account' });
     
     try {
-      // Ensure persistence is set to local before sign-in
-      await setPersistence(auth, browserLocalPersistence);
-      const result = await signInWithPopup(auth, provider);
-      if (result.user) {
-        window.location.href = '/dashboard';
+      if (auth) {
+        await setPersistence(auth, browserLocalPersistence);
+        const result = await signInWithPopup(auth, provider);
+        if (result.user) {
+          window.location.href = '/dashboard';
+        }
       }
     } catch (error: any) {
       console.error("[Auth] Google Sign-In Error:", error);
@@ -48,9 +51,11 @@ function LoginContent() {
     e.preventDefault();
     setLoading(true);
     try {
-      await setPersistence(auth, browserLocalPersistence);
-      await signInWithEmailAndPassword(auth, email, password);
-      window.location.href = '/dashboard';
+      if (auth) {
+        await setPersistence(auth, browserLocalPersistence);
+        await signInWithEmailAndPassword(auth, email, password);
+        window.location.href = '/dashboard';
+      }
     } catch (error: any) {
       console.error(error);
       alert(error.message);
@@ -62,8 +67,10 @@ function LoginContent() {
   const handleForgotPassword = async () => {
     if (!email) return alert("Please enter your email address first.");
     try {
-      await sendPasswordResetEmail(auth, email);
-      alert("Password reset email sent!");
+      if (auth) {
+        await sendPasswordResetEmail(auth, email);
+        alert("Password reset email sent!");
+      }
     } catch (error: any) {
       alert(error.message);
     }

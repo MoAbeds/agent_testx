@@ -70,7 +70,8 @@ export default function AuditFeed({ initialEvents, siteId }: { initialEvents: Ev
           events.map((event) => {
             const isAutoFix = event.type === 'AUTO_FIX';
             const isUndo = event.type === 'UNDO_ACTION';
-            const time = new Date(event.occurredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const date = event.occurredAt?.toDate ? event.occurredAt.toDate() : new Date(event.occurredAt);
+            const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
             return (
               <div key={event.id} className="p-4 hover:bg-white/[0.02] transition-colors flex items-center justify-between group">

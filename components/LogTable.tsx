@@ -8,7 +8,7 @@ interface Log {
   type: string;
   path: string;
   details: string | null;
-  occurredAt: string;
+  occurredAt: any;
   siteId?: string;
   domain?: string;
 }
@@ -38,8 +38,8 @@ function getTypeStyle(type: string) {
   return TYPE_COLORS[type.toUpperCase()] || TYPE_COLORS.INFO;
 }
 
-function formatTime(isoString: string) {
-  const d = new Date(isoString);
+function formatTime(timeVal: any) {
+  const d = timeVal?.toDate ? timeVal.toDate() : new Date(timeVal);
   return d.toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',

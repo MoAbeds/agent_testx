@@ -16,6 +16,24 @@ import {
   Timestamp
 } from "firebase/firestore";
 
+// --- USERS ---
+
+export async function updateUserPlan(userId: string, plan: string, subscriptionId: string) {
+  const userRef = doc(db, "users", userId);
+  await setDoc(userRef, {
+    plan,
+    subscriptionId,
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+}
+
+export async function getUserPlan(userId: string) {
+  const userRef = doc(db, "users", userId);
+  const snap = await getDoc(userRef);
+  if (!snap.exists()) return { plan: 'FREE' };
+  return snap.data();
+}
+
 // --- SITES ---
 
 export async function createSite(userId: string, domain: string) {

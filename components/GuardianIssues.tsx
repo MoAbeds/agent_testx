@@ -12,6 +12,7 @@ interface Issue {
 }
 
 export default function GuardianIssues({ initialIssues, siteId }: { initialIssues: Issue[], siteId: string }) {
+  const { user } = useAuth();
   const [issues, setIssues] = useState(initialIssues);
   const [loading, setLoading] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
@@ -22,7 +23,15 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
     setIssues(initialIssues);
   }, [initialIssues]);
 
+  const isFreePlan = !user?.plan || user.plan === 'FREE';
+
   const fixAll404s = async () => {
+    if (isFreePlan) {
+      return setNotification({ 
+        message: "The 'Fix' button is a Pro feature. Upgrade your plan to activate autonomous remediation.", 
+        type: "info" 
+      });
+    }
     setLoading(true);
     try {
       const res = await fetch('/api/agent/fix-404', {
@@ -48,6 +57,12 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
   };
 
   const fixAllGaps = async () => {
+    if (isFreePlan) {
+      return setNotification({ 
+        message: "AI SEO Gaps require a Professional plan. Upgrade to optimize your site in one click.", 
+        type: "info" 
+      });
+    }
     setOptimizing(true);
     try {
       const res = await fetch('/api/agent/fix-gaps', {

@@ -5,11 +5,12 @@ import { loadScript } from "@paypal/paypal-js";
 
 interface PayPalButtonProps {
   planId: string;
+  userId: string;
   onSuccess: (data: any) => void;
   onError: (err: any) => void;
 }
 
-export default function PayPalButton({ planId, onSuccess, onError }: PayPalButtonProps) {
+export default function PayPalButton({ planId, userId, onSuccess, onError }: PayPalButtonProps) {
   const buttonRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -33,7 +34,8 @@ export default function PayPalButton({ planId, onSuccess, onError }: PayPalButto
             },
             createSubscription: (data: any, actions: any) => {
               return actions.subscription.create({
-                plan_id: planId
+                plan_id: planId,
+                custom_id: userId // CRITICAL: Link the payment to the user
               });
             },
             onApprove: (data: any, actions: any) => {

@@ -30,7 +30,10 @@ function GuardianContent() {
   useEffect(() => {
     if (!user || !db) return;
 
-    // SECURITY: Ensure we ONLY query sites where userId matches current user
+    // Reset state on user change to prevent data ghosting
+    setAllSites([]);
+    setSite(null);
+
     const sitesQuery = query(collection(db, "sites"), where("userId", "==", user.uid));
     
     const unsubscribeSites = onSnapshot(sitesQuery, (snap) => {
@@ -42,67 +45,41 @@ function GuardianContent() {
         : sites[0];
       
       setSite(current || null);
-      if (!current) setLoading(false);
+      setLoading(false);
     }, (error) => {
-      console.error("Sites fetch error:", error);
       setLoading(false);
     });
 
     return () => unsubscribeSites();
-  }, [user, selectedSiteId]);
+  }, [user?.uid, selectedSiteId]);
 
-  // 2. Listen to issues (404s, Gaps) for the selected site
+  // 2. Fetch events via API instead of direct Firestore to guarantee server-side filtering
   useEffect(() => {
-    // SECURITY: Clear feed immediately if site changes or is missing
-    setIssues([]);
-    setAuditEvents([]);
-
-    if (!site?.id || !db || !user) {
-      if (!site?.id) setLoading(false);
+    if (!site?.id || !user) {
+      setIssues([]);
+      setAuditEvents([]);
       return;
     }
 
-    // EXTRA SECURITY: Ensure the site being queried actually belongs to the user
-    if (site.userId !== user.uid) {
-      console.error("Security Block: Site mismatch");
-      setSite(null);
-      return;
-    }
+    const fetchEvents = async () => {
+      try {
+        const res = await fetch(`/api/agent/logs?siteId=${site.id}`);
+        const data = await res.json();
+        const allEvents = data.events || [];
 
-    const issuesQuery = query(
-      collection(db, "events"), 
-      where("siteId", "==", site.id)
-    );
+        // Filter for Issues
+        const filteredIssues = allEvents.filter((e: any) => 
+          ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
+        );
+        setIssues(filteredIssues);
+        setAuditEvents(allEvents.slice(0, 20));
+      } catch (e) {}
+    };
 
-    const unsubscribeIssues = onSnapshot(issuesQuery, (snap) => {
-      const allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      
-      const filteredIssues = allEvents.filter((e: any) => 
-        ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
-      );
-
-      const sortedIssues = filteredIssues.sort((a: any, b: any) => {
-        const tA = a.occurredAt?.seconds || 0;
-        const tB = b.occurredAt?.seconds || 0;
-        return tB - tA;
-      });
-
-      setIssues(sortedIssues);
-      
-      const sortedAudit = allEvents.sort((a: any, b: any) => {
-        const tA = a.occurredAt?.seconds || 0;
-        const tB = b.occurredAt?.seconds || 0;
-        return tB - tA;
-      }).slice(0, 20);
-      
-      setAuditEvents(sortedAudit);
-      setLoading(false);
-    }, (error) => {
-      console.error("Issues fetch error:", error);
-      setLoading(false);
-    });
-
-    return () => unsubscribeIssues();
+    fetchEvents();
+    // Re-fetch every 30 seconds for "Live" feel without the risk of global listener leak
+    const interval = setInterval(fetchEvents, 30000);
+    return () => clearInterval(interval);
   }, [site?.id, user?.uid]);
 
   if (loading) {
@@ -113,12 +90,12 @@ function GuardianContent() {
     );
   }
 
-  if (!site) {
+  if (!site && !loading) {
     return (
       <div className="p-8 text-center min-h-screen flex flex-col items-center justify-center">
         <Globe className="mx-auto text-gray-600 mb-4" size={48} />
-        <h1 className="text-2xl font-bold text-white mb-4">Mojo Guardian</h1>
-        <p className="text-gray-400 mb-8 max-w-sm">No site found for this account. Go to the Overview to connect your first domain.</p>
+        <h1 className="text-2xl font-bold text-white mb-4">Connect a Domain</h1>
+        <p className="text-gray-400 mb-8 max-w-sm">No site is being monitored. Connect your first site in the Overview to activate the Guardian.</p>
         <button 
           onClick={() => window.location.href = '/dashboard'}
           className="px-6 py-3 bg-terminal text-black font-bold rounded-xl hover:bg-green-400 transition-all"
@@ -129,15 +106,16 @@ function GuardianContent() {
     );
   }
 
+  // Rest of the UI remains the same...
   let keywords = { industry: 'N/A', topic: 'N/A', detailed: [], visibility: '0', authority: '0' };
-  if (site.targetKeywords) {
+  if (site?.targetKeywords) {
     try {
       keywords = JSON.parse(site.targetKeywords);
     } catch (e) {}
   }
 
   let audit = { scores: { performance: 0, accessibility: 0, bestPractices: 0, seo: 0 }, metrics: { fcp: 'N/A', lcp: 'N/A', cls: 'N/A' } };
-  if (site.lastAudit) {
+  if (site?.lastAudit) {
     try {
       audit = JSON.parse(site.lastAudit);
     } catch (e) {}
@@ -154,15 +132,15 @@ function GuardianContent() {
             <h1 className="text-2xl md:text-4xl font-bold text-white font-serif tracking-tight">Mojo Guardian</h1>
           </div>
           <p className="text-sm md:text-base text-gray-400 max-w-xl">
-            Autonomous SEO infrastructure. Monitoring <span className="text-blue-400 font-mono">{site.domain}</span> for threats and opportunities.
+            Autonomous SEO infrastructure. Monitoring <span className="text-blue-400 font-mono">{site?.domain}</span> for threats and opportunities.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
-              <SiteManager sites={allSites} currentSiteId={site.id} />
+              <SiteManager sites={allSites} currentSiteId={site?.id} />
               <div className="w-32">
-                <ScanButton domain={site.domain} apiKey={site.apiKey} />
+                <ScanButton domain={site?.domain} apiKey={site?.apiKey} />
               </div>
             </div>
             
@@ -205,8 +183,8 @@ function GuardianContent() {
                 Market Intelligence
               </h2>
               <div className="flex items-center gap-3">
-                <AddKeywordButton siteId={site.id} />
-                <ResearchButton siteId={site.id} initialIndustry={keywords.industry !== 'N/A' ? keywords.industry : ''} />
+                <AddKeywordButton siteId={site?.id} />
+                <ResearchButton siteId={site?.id} initialIndustry={keywords.industry !== 'N/A' ? keywords.industry : ''} />
               </div>
             </div>
             
@@ -275,13 +253,13 @@ function GuardianContent() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         <div className="lg:col-span-2 space-y-10">
-          <IndustryDeepDive siteId={site.id} />
-          <GuardianIssues initialIssues={issues} siteId={site.id} />
-          <CompetitorWatchlist siteId={site.id} />
+          <IndustryDeepDive siteId={site?.id} />
+          <GuardianIssues initialIssues={issues} siteId={site?.id} />
+          <CompetitorWatchlist siteId={site?.id} />
         </div>
 
         <div>
-          <AuditFeed initialEvents={auditEvents} siteId={site.id} />
+          <AuditFeed initialEvents={auditEvents} siteId={site?.id} />
         </div>
       </div>
     </div>

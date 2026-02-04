@@ -64,15 +64,15 @@ Return ONLY JSON: { "seeds": ["seed 1", "seed 2", "seed 3"], "industry": "...", 
     if (dfseoLogin && dfseoPassword && analysis.seeds) {
       try {
         const auth = Buffer.from(`${dfseoLogin}:${dfseoPassword}`).toString('base64');
-        const seeds = analysis.seeds.slice(0, 3).map((s: string) => s.replace(/[^a-zA-Z0-9\s]/g, '').trim().substring(0, 60)).filter((s: string) => s.length > 2);
+        const seeds = (analysis.seeds as string[]).slice(0, 3).map((s: string) => s.replace(/[^a-zA-Z0-9\s]/g, '').trim().substring(0, 60)).filter((s: string) => s.length > 2);
 
         // Run all seed queries in parallel to avoid Railway timeouts
-        const requests = seeds.map(seed => {
+        const requests = seeds.map((seed: string) => {
           console.log(`[DataForSEO] Dispatching parallel seed: ${seed}`);
           return axios.post('https://api.dataforseo.com/v3/dataforseo_labs/google/keyword_ideas/live', 
             [{ keyword: seed, location_code: 2840, language_code: "en", limit: 10, include_seed: true }],
             { headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'application/json' }, timeout: 15000 }
-          ).catch(err => {
+          ).catch((err: any) => {
             console.warn(`[DataForSEO] Parallel request failed for ${seed}:`, err.message);
             return null;
           });
@@ -80,7 +80,7 @@ Return ONLY JSON: { "seeds": ["seed 1", "seed 2", "seed 3"], "industry": "...", 
 
         const responses = await Promise.all(requests);
 
-        responses.forEach(dfRes => {
+        responses.forEach((dfRes: any) => {
           if (!dfRes) return;
           const task = dfRes.data.tasks?.[0];
           if (task && task.status_code === 20000 && task.result?.[0]?.items) {
@@ -134,8 +134,8 @@ Return ONLY JSON: { "seeds": ["seed 1", "seed 2", "seed 3"], "industry": "...", 
 
     // 5. Deduplicate and Calculate Final Metrics
     const finalDetailed = detailedKeywords
-      .filter((v, i, a) => a.findIndex(t => t.keyword === v.keyword) === i)
-      .sort((a, b) => Number(b.results) - Number(a.results))
+      .filter((v: any, i: number, a: any[]) => a.findIndex(t => t.keyword === v.keyword) === i)
+      .sort((a: any, b: any) => Number(b.results) - Number(a.results))
       .slice(0, 15);
 
     const organicCount = serperData.organic?.length || 0;

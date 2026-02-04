@@ -86,13 +86,44 @@ export async function getActiveRules(siteId: string) {
 // --- EVENTS ---
 
 export async function logEvent(siteId: string, type: string, path: string, details: any) {
-  await addDoc(collection(db, "events"), {
+  const eventData = {
     siteId,
     type,
     path,
     details: JSON.stringify(details),
     occurredAt: serverTimestamp()
-  });
+  };
+  
+  await addDoc(collection(db, "events"), eventData);
+
+  // Trigger Webhooks
+  triggerWebhooks(siteId, type, { path, details });
+}
+
+async function triggerWebhooks(siteId: string, eventType: string, payload: any) {
+  try {
+    const q = query(collection(db, "webhooks"), where("siteId", "==", siteId), where("isActive", "==", true));
+    const snapshot = await getDocs(q);
+    
+    snapshot.docs.forEach(async (doc) => {
+      const webhook = doc.data();
+      if (webhook.events.includes(eventType)) {
+        console.log(`[Webhook] Dispatching ${eventType} to ${webhook.url}`);
+        fetch(webhook.url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event: eventType,
+            siteId,
+            timestamp: new Date().toISOString(),
+            data: payload
+          })
+        }).catch(err => console.error(`[Webhook] Delivery failed to ${webhook.url}:`, err.message));
+      }
+    });
+  } catch (e) {
+    console.error("[Webhook] Trigger error:", e);
+  }
 }
 
 export async function getEvents(siteId: string, limitCount = 50) {

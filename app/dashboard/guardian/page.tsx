@@ -26,26 +26,21 @@ function GuardianContent() {
 
   const selectedSiteId = searchParams.get('siteId');
 
-  // 1. Fetch only sites that BELONG to this specific user
   useEffect(() => {
     if (!user?.uid || !db) return;
 
-    // HARD WIPE: Kill any previous account data from memory immediately
+    // Reset everything when user changes to prevent cross-account leak
     setAllSites([]);
     setSite(null);
     setIssues([]);
     setAuditEvents([]);
 
-    const sitesQuery = query(
-      collection(db, "sites"), 
-      where("userId", "==", user.uid)
-    );
+    const sitesQuery = query(collection(db, "sites"), where("userId", "==", user.uid));
     
     const unsubscribeSites = onSnapshot(sitesQuery, (snap) => {
       const sites = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setAllSites(sites);
 
-      // Verify that the site actually belongs to this user
       const current = selectedSiteId 
         ? sites.find(s => s.id === selectedSiteId) 
         : sites[0];
@@ -53,49 +48,46 @@ function GuardianContent() {
       setSite(current || null);
       setLoading(false);
     }, (error) => {
-      console.error("[Guardian] Site listener error:", error);
       setLoading(false);
     });
 
     return () => unsubscribeSites();
   }, [user?.uid, selectedSiteId]);
 
-  // 2. Fetch events ONLY for the verified site
   useEffect(() => {
-    // SECURITY: Immediate wipe if site changes
+    // SECURITY: Clear feed immediately whenever site, siteId, or user changes
     setIssues([]);
     setAuditEvents([]);
 
     if (!site?.id || !user?.uid) return;
 
-    // Direct filter on siteId + limit
-    const eventsQuery = query(
-      collection(db, "events"), 
-      where("siteId", "==", site.id),
-      limit(100)
-    );
+    const fetchEvents = async () => {
+      try {
+        const res = await fetch(`/api/agent/logs?siteId=${site.id}`);
+        const data = await res.json();
+        
+        if (!data.success || !data.events) {
+          setIssues([]);
+          setAuditEvents([]);
+          return;
+        }
 
-    const unsubscribeEvents = onSnapshot(eventsQuery, (snap) => {
-      // Secondary filter in JS just to be 1000% sure no global data snuck in
-      const allEvents = snap.docs
-        .map(d => ({ id: d.id, ...d.data() } as any))
-        .filter(e => e.siteId === site.id);
-      
-      const filtered = allEvents.filter((e: any) => 
-        ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
-      );
+        const allEvents = data.events;
+        const filteredIssues = allEvents.filter((e: any) => 
+          ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
+        );
+        
+        setIssues(filteredIssues);
+        setAuditEvents(allEvents.slice(0, 20));
+      } catch (e) {
+        setIssues([]);
+        setAuditEvents([]);
+      }
+    };
 
-      const sorted = allEvents.sort((a: any, b: any) => 
-        (b.occurredAt?.seconds || 0) - (a.occurredAt?.seconds || 0)
-      );
-
-      setIssues(filtered);
-      setAuditEvents(sorted.slice(0, 20));
-    }, (error) => {
-      console.error("[Guardian] Event listener error:", error);
-    });
-
-    return () => unsubscribeEvents();
+    fetchEvents();
+    const interval = setInterval(fetchEvents, 10000); // Faster sync
+    return () => clearInterval(interval);
   }, [site?.id, user?.uid]);
 
   if (loading) {
@@ -111,7 +103,7 @@ function GuardianContent() {
       <div className="p-8 text-center min-h-screen flex flex-col items-center justify-center">
         <Globe className="mx-auto text-gray-600 mb-4" size={48} />
         <h1 className="text-2xl font-bold text-white mb-4">Connect a Domain</h1>
-        <p className="text-gray-400 mb-8 max-w-sm">No site is being monitored. Add your first site in the Overview to activate the Guardian.</p>
+        <p className="text-gray-400 mb-8 max-w-sm">No site found for this account. Add your first site in the Overview.</p>
         <button onClick={() => window.location.href = '/dashboard'} className="px-6 py-3 bg-terminal text-black font-bold rounded-xl hover:bg-green-400 transition-all">
           Add First Site
         </button>
@@ -119,7 +111,6 @@ function GuardianContent() {
     );
   }
 
-  // UI Extraction
   let keywords = { industry: 'N/A', topic: 'N/A', detailed: [], visibility: '0', authority: '0' };
   if (site?.targetKeywords) { try { keywords = JSON.parse(site.targetKeywords); } catch (e) {} }
 
@@ -137,7 +128,7 @@ function GuardianContent() {
             <h1 className="text-2xl md:text-4xl font-bold text-white font-serif tracking-tight">Mojo Guardian</h1>
           </div>
           <p className="text-sm md:text-base text-gray-400 max-w-xl">
-            Autonomous SEO monitoring for <span className="text-blue-400 font-mono">{site?.domain}</span>.
+            Monitoring <span className="text-blue-400 font-mono">{site?.domain}</span> for threats and opportunities.
           </p>
         </div>
 
@@ -148,6 +139,7 @@ function GuardianContent() {
                 <ScanButton domain={site?.domain} apiKey={site?.apiKey} />
               </div>
             </div>
+            
             <div className="flex gap-3">
               <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl px-3 py-2 md:px-4 md:py-3 flex items-center gap-3">
                   <Zap className={Number(audit.scores.performance) > 80 ? "text-terminal" : "text-yellow-500"} size={18} />

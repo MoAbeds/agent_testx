@@ -98,20 +98,32 @@ export default function AddSiteForm() {
           </p>
 
           {success.platform === 'wordpress' && (
-            <div className="p-3 bg-blue-900/10 border border-blue-500/20 rounded-lg">
+            <div className="p-3 bg-blue-900/10 border border-blue-500/20 rounded-lg space-y-3">
               <p className="text-xs text-blue-400 font-medium flex items-center gap-2">
                 <Plus size={14} />
                 WordPress Detected: Please setup the Mojo Guardian WordPress plugin.
               </p>
+              <button 
+                onClick={() => router.push('/dashboard/install')}
+                className="w-full py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded border border-blue-500/30 transition-all"
+              >
+                Go to Setup Guide
+              </button>
             </div>
           )}
 
           {success.platform === 'nextjs' && (
-            <div className="p-3 bg-terminal/5 border border-terminal/20 rounded-lg">
+            <div className="p-3 bg-terminal/5 border border-terminal/20 rounded-lg space-y-3">
               <p className="text-xs text-terminal font-medium flex items-center gap-2">
                 <Plus size={14} />
                 Next.js Detected: Please setup our Next.js library.
               </p>
+              <button 
+                onClick={() => router.push('/dashboard/install')}
+                className="w-full py-1.5 bg-terminal/10 hover:bg-terminal/20 text-terminal text-[10px] font-black uppercase tracking-widest rounded border border-terminal/30 transition-all"
+              >
+                Go to Setup Guide
+              </button>
             </div>
           )}
           

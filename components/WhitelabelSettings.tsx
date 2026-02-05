@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Palette, Image as ImageIcon, Building, Save, Loader2, Check } from 'lucide-react';
+import { Palette, Image as ImageIcon, Building, Save, Loader2, Check, Globe } from 'lucide-react';
 import Toast from './Toast';
 
 export default function WhitelabelSettings({ user }: { user: any }) {

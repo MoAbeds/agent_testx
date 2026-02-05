@@ -19,7 +19,6 @@ import {
 // --- USERS ---
 
 export async function updateUserPlan(userId: string, plan: string, subscriptionId: string) {
-  console.log(`[DB] Updating User ${userId} to Plan: ${plan} (Sub: ${subscriptionId})`);
   const userRef = doc(db, "users", userId);
   await setDoc(userRef, {
     plan,

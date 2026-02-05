@@ -5,8 +5,17 @@ import { useAuth } from '@/lib/hooks';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { useEffect, useState, Suspense } from 'react';
-import { Plug, RefreshCw, MessageSquare, Loader2, CheckCircle2 } from 'lucide-react';
+import { Plug, RefreshCw, MessageSquare, Loader2, CheckCircle2, Search } from 'lucide-react';
 import WebhookManager from '@/components/WebhookManager';
+
+function GscStat({ label, value }: { label: string, value: any }) {
+  return (
+    <div>
+      <p className="text-[10px] font-bold text-gray-600 uppercase tracking-tighter mb-1">{label}</p>
+      <p className="text-2xl font-black text-white font-mono">{value.toLocaleString()}</p>
+    </div>
+  );
+}
 
 function IntegrationsContent() {
   const { user, loading: authLoading } = useAuth();
@@ -20,7 +29,7 @@ function IntegrationsContent() {
     if (!user || !db) return;
     const q = query(collection(db, "sites"), where("userId", "==", user.uid));
     return onSnapshot(q, (snap) => {
-      const siteList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const siteList = snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
       setSites(siteList);
       if (siteList.length > 0 && !selectedSiteId) setSelectedSiteId(siteList[0].id);
       
@@ -58,7 +67,6 @@ function IntegrationsContent() {
     try {
       const result = await signInWithPopup(auth, provider);
       if (result.user) {
-        // Mark Google Search Console as connected in the user profile
         const userRef = doc(db, "users", user.uid);
         await updateDoc(userRef, {
           gscConnected: true,
@@ -125,24 +133,6 @@ function IntegrationsContent() {
           </div>
         </div>
 
-        </div>
-
-        {/* GSC Data Summary */}
-        {gscData && (
-          <div className="lg:col-span-2 bg-[#0a0a0a] border border-gray-800 rounded-xl p-6 shadow-sm">
-            <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-6 flex items-center gap-2">
-              <Search size={14} />
-              Search Console Performance (Last 30 Days)
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-              <GscStat label="Clicks" value={gscData.clicks} />
-              <GscStat label="Impressions" value={gscData.impressions} />
-              <GscStat label="Avg. CTR" value={`${gscData.ctr}%`} />
-              <GscStat label="Avg. Position" value={gscData.position} />
-            </div>
-          </div>
-        )}
-
         {/* Webhooks Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between mb-2 px-1">
@@ -165,6 +155,22 @@ function IntegrationsContent() {
         </div>
       </div>
 
+      {/* GSC Data Summary */}
+      {gscData && (
+        <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl p-6 shadow-sm">
+          <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-6 flex items-center gap-2">
+            <Search size={14} />
+            Search Console Performance (Last 30 Days)
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            <GscStat label="Clicks" value={gscData.clicks} />
+            <GscStat label="Impressions" value={gscData.impressions} />
+            <GscStat label="Avg. CTR" value={`${gscData.ctr}%`} />
+            <GscStat label="Avg. Position" value={gscData.position} />
+          </div>
+        </div>
+      )}
+
       {/* Slack/Discord Coming Soon */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 opacity-50 grayscale">
         <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl p-6 flex items-center justify-between">
@@ -184,15 +190,6 @@ function IntegrationsContent() {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function GscStat({ label, value }: { label: string, value: any }) {
-  return (
-    <div>
-      <p className="text-[10px] font-bold text-gray-600 uppercase tracking-tighter mb-1">{label}</p>
-      <p className="text-2xl font-black text-white font-mono">{value.toLocaleString()}</p>
     </div>
   );
 }

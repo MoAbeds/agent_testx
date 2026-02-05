@@ -111,10 +111,10 @@ function GuardianContent() {
       });
       const data = await res.json();
       if (data.success) {
-        alert(`Mojo Brain deployed ${data.actionsDeployed} strategic ranking actions! Check the Rules Engine.`);
+        // Removed browser alert for better UX
       }
     } catch (e) {
-      alert("Brain activation failed.");
+      // Quiet fail
     } finally {
       setBrainstorming(false);
     }

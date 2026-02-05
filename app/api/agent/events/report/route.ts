@@ -1,42 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { updateUserPlan } from '@/lib/db';
+import { collection, query, where, getDocs } from "firebase/firestore";
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const body = await req.json();
-    const eventType = body.event_type;
-    const resource = body.resource;
+    const { siteId } = await request.json();
+    if (!siteId) return NextResponse.json({ error: 'siteId required' }, { status: 400 });
 
-    const subscriptionId = resource.id;
-    const userId = resource.custom_id;
-    const planId = resource.plan_id;
+    // In a real production environment, you'd use a PDF generation library like puppeteer or a service.
+    // For this implementation, we aggregate the data and the frontend handles the 'Print to PDF' view.
+    
+    // 1. Get Site Data
+    const sitesRef = collection(db, "sites");
+    const qSite = query(sitesRef, where("__name__", "==", siteId));
+    const siteSnap = await getDocs(qSite);
+    if (siteSnap.empty) return NextResponse.json({ error: 'Site not found' }, { status: 404 });
+    const site = siteSnap.docs[0].data();
 
-    if (!userId) {
-      console.warn("[PayPal-Webhook] No custom_id (userId) found in webhook payload.");
-      return NextResponse.json({ success: true, message: "Ignored: No userId" });
-    }
+    // 2. Get Recent Events (Audit Trail)
+    const eventsQ = query(collection(db, "events"), where("siteId", "==", siteId));
+    const eventsSnap = await getDocs(eventsQ);
+    const events = eventsSnap.docs.map(d => d.data());
 
-    // Determine plan type from PayPal Plan ID
-    let internalPlan = 'FREE';
-    if (planId === 'P-STARTER') internalPlan = 'STARTER';
-    if (planId === 'P-PRO') internalPlan = 'PRO';
-    if (planId === 'P-AGENCY') internalPlan = 'AGENCY';
+    // 3. Get Pages (SEO Gaps)
+    const pagesQ = query(collection(db, "pages"), where("siteId", "==", siteId));
+    const pagesSnap = await getDocs(pagesQ);
+    const pages = pagesSnap.docs.map(d => d.data());
 
-    if (eventType === 'BILLING.SUBSCRIPTION.ACTIVATED' || eventType === 'BILLING.SUBSCRIPTION.CREATED') {
-      await updateUserPlan(userId, internalPlan, subscriptionId);
-    }
+    return NextResponse.json({
+      success: true,
+      report: {
+        domain: site.domain,
+        generatedAt: new Date().toISOString(),
+        metrics: {
+          totalActions: events.length,
+          pagesAnalyzed: pages.length,
+          healthScore: 85 // Mock calculation
+        },
+        recentFixes: events.filter((e: any) => e.type === 'AUTO_FIX').slice(0, 10),
+        seoGaps: pages.filter((p: any) => p.status === 404 || !p.title).slice(0, 10)
+      }
+    });
 
-    if (eventType === 'BILLING.SUBSCRIPTION.CANCELLED' || eventType === 'BILLING.SUBSCRIPTION.EXPIRED') {
-      await updateUserPlan(userId, 'FREE', subscriptionId);
-    }
-
-    return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('PayPal Webhook Error:', error.message);
-    return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

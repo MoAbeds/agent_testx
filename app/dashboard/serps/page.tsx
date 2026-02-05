@@ -56,9 +56,13 @@ function SerpsContent() {
   }, [user?.uid, selectedSiteId]);
 
   const handleSearch = async (kw?: any) => {
-    // If kw is a synthetic event (from onSubmit), treat it as undefined
-    const actualKw = typeof kw === 'string' ? kw : undefined;
-    const targetKeyword = actualKw || keyword;
+    // If it's a form event, prevent default
+    if (kw && typeof kw.preventDefault === 'function') {
+      kw.preventDefault();
+    }
+
+    // Determine the actual keyword string
+    const targetKeyword = typeof kw === 'string' ? kw : keyword;
     
     if (!site?.id || !targetKeyword.trim()) return;
 
@@ -133,7 +137,7 @@ function SerpsContent() {
         {/* Main: Search & Results */}
         <div className="lg:col-span-3 space-y-8">
           <div className="bg-[#0a0a0a] border border-gray-800 rounded-2xl p-6 shadow-sm">
-            <form onSubmit={(e) => { e.preventDefault(); handleSearch(); }} className="flex flex-col md:flex-row gap-4">
+            <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
               <div className="flex-1 relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
                 <input

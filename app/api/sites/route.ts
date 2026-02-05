@@ -41,17 +41,22 @@ export async function POST(request: NextRequest) {
     // Create the site in Firestore
     const { id, apiKey } = await createSite(userId, normalizedDomain);
 
-    // Detect platform
+    // Detect platform and SSL
     let platform: 'wordpress' | 'nextjs' | 'other' = 'other';
+    let sslActive = false;
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
       
-      // Try HTTPS first, then fallback to HTTP
+      // Try HTTPS first to check SSL
       let response = await fetch(`https://${normalizedDomain}`, { 
         signal: controller.signal,
         headers: { 'User-Agent': 'MojoBot/1.0' }
       }).catch(() => null);
+
+      if (response && response.ok) {
+        sslActive = true;
+      }
 
       if (!response) {
         response = await fetch(`http://${normalizedDomain}`, { 
@@ -84,14 +89,15 @@ export async function POST(request: NextRequest) {
       }
       clearTimeout(timeoutId);
     } catch (e) {
-      console.error('Platform detection failed:', e);
+      console.error('Platform/SSL detection failed:', e);
     }
 
     return NextResponse.json({ 
       site: {
         id,
         domain: normalizedDomain,
-        platform
+        platform,
+        sslActive
       },
       apiKey 
     }, { status: 201 });

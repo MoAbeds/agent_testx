@@ -12,7 +12,7 @@ export default function AddSiteForm() {
   const [domain, setDomain] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState<{ domain: string; apiKey: string; platform?: string } | null>(null);
+  const [success, setSuccess] = useState<{ domain: string; apiKey: string; platform?: string; sslActive?: boolean } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,7 +39,8 @@ export default function AddSiteForm() {
       setSuccess({ 
         domain: data.site.domain, 
         apiKey: data.apiKey,
-        platform: data.site.platform 
+        platform: data.site.platform,
+        sslActive: data.site.sslActive
       });
       setDomain('');
     } catch (err) {
@@ -96,6 +97,13 @@ export default function AddSiteForm() {
           <p className="text-gray-400 text-sm">
             <span className="text-gray-300 font-medium">{success.domain}</span> has been added.
           </p>
+
+          <div className={`p-3 rounded-lg border ${success.sslActive ? 'bg-green-900/10 border-green-500/20' : 'bg-red-900/10 border-red-500/20'}`}>
+            <p className={`text-xs font-medium flex items-center gap-2 ${success.sslActive ? 'text-terminal' : 'text-red-400'}`}>
+              <Shield size={14} />
+              SSL Status: {success.sslActive ? 'Active & Secure' : 'Inactive (Action Required)'}
+            </p>
+          </div>
 
           {success.platform === 'wordpress' && (
             <div className="p-3 bg-blue-900/10 border border-blue-500/20 rounded-lg space-y-3">

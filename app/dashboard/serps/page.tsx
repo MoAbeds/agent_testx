@@ -8,11 +8,19 @@ import { useSearchParams } from 'next/navigation';
 import { Search, Globe, Trophy, ExternalLink, Loader2, Target, BarChart3, AlertCircle } from 'lucide-react';
 import SiteManager from '@/components/SiteManager';
 
+interface SiteData {
+  id: string;
+  domain: string;
+  userId: string;
+  targetKeywords?: string;
+  [key: string]: any;
+}
+
 function SerpsContent() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
-  const [allSites, setAllSites] = useState<any[]>([]);
-  const [site, setSite] = useState<any>(null);
+  const [allSites, setAllSites] = useState<SiteData[]>([]);
+  const [site, setSite] = useState<SiteData | null>(null);
   const [keyword, setKeyword] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [myPosition, setMyPosition] = useState<number>(-1);
@@ -27,7 +35,7 @@ function SerpsContent() {
     if (!user?.uid || !db) return;
     const q = query(collection(db, "sites"), where("userId", "==", user.uid));
     return onSnapshot(q, (snap) => {
-      const sites = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const sites = snap.docs.map(d => ({ id: d.id, ...d.data() } as SiteData));
       setAllSites(sites);
       const current = selectedSiteId ? sites.find(s => s.id === selectedSiteId) : sites[0];
       setSite(current || null);

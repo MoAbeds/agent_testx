@@ -3,21 +3,29 @@ import "./globals.css";
 
 // Local Mojo Guardian Implementation
 class MojoGuardian {
-  constructor(apiKey) {
+  apiKey: string;
+  rules: any;
+
+  constructor(apiKey: string) {
     this.apiKey = apiKey;
     this.rules = {};
   }
   async init() {
-    const res = await fetch('https://agenttestx-production-19d6.up.railway.app/api/agent/manifest', {
-      headers: { 'Authorization': `Bearer ${this.apiKey}` }
-    });
-    const data = await res.json();
-    this.rules = data.rules || {};
+    try {
+      const res = await fetch('https://agenttestx-production-19d6.up.railway.app/api/agent/manifest', {
+        headers: { 'Authorization': `Bearer ${this.apiKey}` },
+        next: { revalidate: 60 } // Cache for 60 seconds
+      });
+      const data = await res.json();
+      this.rules = data.rules || {};
+    } catch (e) {
+      this.rules = {};
+    }
   }
-  getMetadata(path) {
+  getMetadata(path: string) {
     return this.rules[path] || null;
   }
-  getPageContent(path) {
+  getPageContent(path: string) {
     const rule = this.rules[path];
     if (rule && rule.type === 'INJECT_HTML') {
       return {

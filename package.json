@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "npx prisma db push && node prisma/seed.js && next start",
+    "start": "next start",
     "lint": "next lint"
   },
   "engines": {

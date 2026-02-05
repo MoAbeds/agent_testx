@@ -9,12 +9,10 @@ const inter = Inter({ subsets: ["latin"] });
 const mojo = new MojoGuardian("mojo_0olio1pl57dg");
 
 export async function generateMetadata(): Promise<Metadata> {
-  await mojo.init();
-  const optimized = mojo.getMetadata("/");
-
+  // Removed agent handshake during build to prevent failures
   return {
-    title: optimized?.title || "Mojo Next.js Dummy",
-    description: optimized?.description || "A high-performance Next.js site protected by Mojo Guardian.",
+    title: "Mojo Next.js Dummy",
+    description: "A high-performance Next.js site protected by Mojo Guardian.",
     icons: {
       icon: "https://agenttestx-production-19d6.up.railway.app/logo.svg",
     },

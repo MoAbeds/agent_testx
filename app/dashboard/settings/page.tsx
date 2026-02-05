@@ -15,6 +15,8 @@ export default function SettingsPage() {
     router.push('/');
   };
 
+  const isFreePlan = !user?.plan || user.plan === 'FREE';
+
   return (
     <div className="p-8">
       <header className="mb-8">
@@ -67,32 +69,46 @@ export default function SettingsPage() {
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <span className="inline-flex items-center gap-2 text-sm font-semibold text-terminal bg-terminal/10 px-3 py-1.5 rounded-full border border-terminal/20">
+                <span className={`inline-flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-full border ${
+                  isFreePlan ? 'text-gray-400 bg-gray-800/50 border-gray-700' : 'text-terminal bg-terminal/10 border-terminal/20'
+                }`}>
                   <Shield size={14} />
-                  Pro Plan
+                  {user?.plan || 'FREE'} Plan
                 </span>
               </div>
-              <p className="text-gray-400 text-sm">$29/month</p>
-            </div>
-            <div className="space-y-2 text-sm text-gray-400">
-              <p className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-terminal" />
-                Unlimited sites
-              </p>
-              <p className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-terminal" />
-                Priority AI optimization
-              </p>
-              <p className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-terminal" />
-                Advanced analytics
+              <p className="text-gray-400 text-sm">
+                {user?.plan === 'STARTER' ? '$39/mo' : user?.plan === 'PRO' ? '$129/mo' : user?.plan === 'AGENCY' ? '$499/mo' : '$0/mo'}
               </p>
             </div>
+            
+            {isFreePlan ? (
+              <div className="p-4 bg-yellow-500/5 border border-yellow-500/10 rounded-lg mb-4">
+                <p className="text-xs text-yellow-500/80 leading-relaxed">
+                  Your account is currently on the Free plan. To unlock Mojo Brain, SERP tracking, and autonomous SEO fixes, please upgrade to a Professional tier.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2 text-sm text-gray-400">
+                <p className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-terminal" />
+                  Unlimited sites
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-terminal" />
+                  Priority AI optimization
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-terminal" />
+                  Advanced analytics
+                </p>
+              </div>
+            )}
+
             <button 
               onClick={() => window.location.href = '/pricing'}
-              className="mt-4 w-full px-4 py-2.5 bg-[#111] hover:bg-[#161616] border border-gray-800 rounded-lg text-sm text-gray-300 transition-colors"
+              className="mt-4 w-full px-4 py-2.5 bg-terminal text-black hover:bg-green-400 rounded-lg text-sm font-bold transition-all"
             >
-              Manage Subscription
+              {isFreePlan ? 'Upgrade Now' : 'Manage Subscription'}
             </button>
           </div>
         </div>

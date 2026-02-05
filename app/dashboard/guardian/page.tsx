@@ -11,7 +11,7 @@ import IndustryDeepDive from '@/components/IndustryDeepDive';
 import { Shield, Target, Search, Sparkles, Loader2, Zap, Globe } from 'lucide-react';
 import { useAuth } from '@/lib/hooks';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, limit } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, limit, getDocs } from 'firebase/firestore';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
@@ -26,11 +26,23 @@ function GuardianContent() {
 
   const selectedSiteId = searchParams.get('siteId');
 
-  // 1. Fetch only sites that BELONG to this specific user ID
+  // 1. HARD WIPE on every account change
+  useEffect(() => {
+    setAllSites([]);
+    setSite(null);
+    setIssues([]);
+    setAuditEvents([]);
+    if (!user) setLoading(false);
+  }, [user?.uid]);
+
+  // 2. Fetch only sites that BELONG to this user
   useEffect(() => {
     if (!user?.uid || !db) return;
 
-    const sitesQuery = query(collection(db, "sites"), where("userId", "==", user.uid));
+    const sitesQuery = query(
+      collection(db, "sites"), 
+      where("userId", "==", user.uid)
+    );
     
     const unsubscribeSites = onSnapshot(sitesQuery, (snap) => {
       const sites = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -43,52 +55,47 @@ function GuardianContent() {
       setSite(current || null);
       setLoading(false);
     }, (error) => {
+      console.error("Sites fetch error:", error);
       setLoading(false);
     });
 
     return () => unsubscribeSites();
   }, [user?.uid, selectedSiteId]);
 
-  // 2. Fetch events via SECURE API with Ownership verification
+  // 3. Fetch events ONLY for the verified site belonging to the current user
   useEffect(() => {
-    // SECURITY WIPE: Prevents ghosting of previous user's data
+    // SECURITY WIPE: Immediate wipe if site ID or User ID changes
     setIssues([]);
     setAuditEvents([]);
 
-    if (!site?.id || !user?.uid) {
-      return;
-    }
+    if (!site?.id || !user?.uid) return;
 
-    const fetchEvents = async () => {
-      try {
-        // Pass both siteId AND userId to the server for ownership validation
-        const res = await fetch(`/api/agent/logs?siteId=${site.id}&userId=${user.uid}`);
-        const data = await res.json();
-        
-        if (!data.success || !data.events) {
-          setIssues([]);
-          setAuditEvents([]);
-          return;
-        }
+    // Direct filter on siteId ensures we don't grab global data
+    const eventsQuery = query(
+      collection(db, "events"), 
+      where("siteId", "==", site.id),
+      limit(100)
+    );
 
-        const allEvents = data.events;
+    const unsubscribeEvents = onSnapshot(eventsQuery, (snap) => {
+      // 🔒 HARD SECONDARY CHECK in JS: If Firestore leaks, we filter here.
+      const allEvents = snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as any))
+        .filter(e => e.siteId === site.id);
+      
+      const filtered = allEvents.filter((e: any) => 
+        ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
+      );
 
-        // Filter for Dashboard Issues
-        const filteredIssues = allEvents.filter((e: any) => 
-          ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
-        );
-        
-        setIssues(filteredIssues);
-        setAuditEvents(allEvents.slice(0, 20));
-      } catch (e) {
-        setIssues([]);
-        setAuditEvents([]);
-      }
-    };
+      const sorted = allEvents.sort((a: any, b: any) => 
+        (b.occurredAt?.seconds || 0) - (a.occurredAt?.seconds || 0)
+      );
 
-    fetchEvents();
-    const interval = setInterval(fetchEvents, 30000);
-    return () => clearInterval(interval);
+      setIssues(filtered);
+      setAuditEvents(sorted.slice(0, 20));
+    });
+
+    return () => unsubscribeEvents();
   }, [site?.id, user?.uid]);
 
   if (loading) {
@@ -103,15 +110,16 @@ function GuardianContent() {
     return (
       <div className="p-8 text-center min-h-screen flex flex-col items-center justify-center">
         <Globe className="mx-auto text-gray-600 mb-4" size={48} />
-        <h1 className="text-2xl font-bold text-white mb-4">Connect First Domain</h1>
-        <p className="text-gray-400 mb-8 max-w-sm">No site found for this account. Mojo is locked until you connect a domain in the Overview.</p>
+        <h1 className="text-2xl font-bold text-white mb-4">Mojo Guardian</h1>
+        <p className="text-gray-400 mb-8 max-w-sm">No site found for this account. Add your first site in the Overview.</p>
         <button onClick={() => window.location.href = '/dashboard'} className="px-6 py-3 bg-terminal text-black font-bold rounded-xl hover:bg-green-400 transition-all">
-          Go to Overview
+          Add First Site
         </button>
       </div>
     );
   }
 
+  // UI Extraction
   let keywords = { industry: 'N/A', topic: 'N/A', detailed: [], visibility: '0', authority: '0' };
   if (site?.targetKeywords) { try { keywords = JSON.parse(site.targetKeywords); } catch (e) {} }
 

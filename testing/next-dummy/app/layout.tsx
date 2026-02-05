@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import MojoGuardian from "@moabeds/mojo-guardian";
+// import MojoGuardian from "@moabeds/mojo-guardian";
 
 const inter = Inter({ subsets: ["latin"] });
 
-// Initialize Mojo Guardian
-const mojo = new MojoGuardian("mojo_0olio1pl57dg");
+// Initialize Mojo Guardian (Commented out to prevent main build failure)
+// const mojo = new MojoGuardian("mojo_0olio1pl57dg");
 
 export async function generateMetadata(): Promise<Metadata> {
   // Removed agent handshake during build to prevent failures

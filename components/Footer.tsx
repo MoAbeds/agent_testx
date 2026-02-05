@@ -22,13 +22,13 @@ export default function Footer() {
 
           {/* Links */}
           <div className="flex items-center gap-6 text-sm text-gray-500">
-            <Link href="#" className="hover:text-white transition-colors">
+            <Link href="/privacy" className="hover:text-white transition-colors">
               Privacy
             </Link>
-            <Link href="#" className="hover:text-white transition-colors">
+            <Link href="/terms" className="hover:text-white transition-colors">
               Terms
             </Link>
-            <Link href="#" className="hover:text-white transition-colors">
+            <Link href="/dashboard/install" className="hover:text-white transition-colors">
               Docs
             </Link>
           </div>

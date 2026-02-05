@@ -53,7 +53,7 @@ export default function Footer() {
         {/* Bottom tagline */}
         <div className="mt-8 pt-8 border-t border-gray-800/30 text-center">
           <p className="text-xs text-gray-700 font-mono">
-            <span className="text-terminal">$</span> Built for teams who ship fast_
+            <span className="text-terminal">$</span> Built for teams who ship fast. <span className="text-gray-500 italic">Made by Pharaoh_</span>
           </p>
         </div>
       </div>

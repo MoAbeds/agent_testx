@@ -11,10 +11,12 @@ import { useEffect, useState } from 'react';
 import AddSiteForm from '@/components/AddSiteForm';
 import ScanButton from '@/components/ScanButton';
 import OptimizeButton from '@/components/OptimizeButton';
+import OnboardingChecklist from '@/components/OnboardingChecklist';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [stats, setStats] = useState({ sites: 0, pages: 0, rules: 0 });
+  const [allSitesData, setAllSitesData] = useState<any[]>([]);
   const [pages, setPages] = useState<any[]>([]);
   const [latestRule, setLatestRule] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -55,6 +57,7 @@ export default function Dashboard() {
       }
 
       setStats({ sites: siteCount, pages: pageCount, rules: activeRules });
+      setAllSitesData(sitesSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setPages(allPages.sort((a, b) => (b.lastCrawled?.seconds || 0) - (a.lastCrawled?.seconds || 0)).slice(0, 5));
       setLoading(false);
     });
@@ -113,6 +116,10 @@ export default function Dashboard() {
           <h1 className="text-2xl md:text-3xl font-bold text-white mb-2 font-serif">Overview</h1>
           <p className="text-sm md:text-base text-gray-400">Real-time SEO infrastructure monitoring</p>
         </header>
+
+        <div className="mb-10">
+          <OnboardingChecklist user={user} sites={allSitesData} />
+        </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

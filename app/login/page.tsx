@@ -5,19 +5,19 @@ import {
   GoogleAuthProvider, 
   signInWithPopup, 
   signInWithEmailAndPassword,
-  sendPasswordResetEmail,
   browserLocalPersistence,
   setPersistence
 } from "firebase/auth";
 import { useState, Suspense, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from 'next/link';
-import { Mail, Loader2, Lock, Sparkles } from 'lucide-react';
+import { Mail, Loader2, Lock, AlertCircle } from 'lucide-react';
 
 function LoginContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const router = useRouter();
 
   // PRE-FETCH DASHBOARD
@@ -28,6 +28,7 @@ function LoginContent() {
   const handleGoogleSignIn = async () => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
+    setError('');
     
     try {
       if (auth) {
@@ -35,20 +36,20 @@ function LoginContent() {
         await setPersistence(auth, browserLocalPersistence);
         const result = await signInWithPopup(auth, provider);
         if (result.user) {
-          // HARD NAVIGATE for speed
           window.location.assign('/dashboard');
         }
       }
     } catch (error: any) {
       console.error("[Auth] Error:", error);
       setLoading(false);
-      alert(`Auth Error: ${error.message}`);
+      setError(error.message);
     }
   };
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     try {
       if (auth) {
         await setPersistence(auth, browserLocalPersistence);
@@ -58,20 +59,35 @@ function LoginContent() {
     } catch (error: any) {
       console.error(error);
       setLoading(false);
-      alert(error.message);
+      
+      // Professional error mapping
+      if (error.code === 'auth/invalid-credential') {
+        setError('Invalid email or password.');
+      } else if (error.code === 'auth/user-not-found') {
+        setError('No account found with this email.');
+      } else {
+        setError(error.message);
+      }
     }
   };
 
   return (
     <>
       <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold text-white mb-2">Welcome Back</h1>
+        <h1 className="text-2xl font-bold text-white mb-2 font-serif">Welcome Back</h1>
         <p className="text-gray-400 text-sm">Sign in to manage your SEO infrastructure.</p>
       </div>
 
+      {error && (
+        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-400 text-xs animate-in fade-in slide-in-from-top-2">
+          <AlertCircle size={16} className="shrink-0" />
+          <p>{error}</p>
+        </div>
+      )}
+
       <form onSubmit={handleEmailSignIn} className="space-y-4 mb-6">
         <div>
-          <label className="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-1.5 block">Email</label>
+          <label className="text-[10px] uppercase tracking-widest font-black text-gray-500 mb-1.5 block">Email Address</label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
             <input 
@@ -80,12 +96,12 @@ function LoginContent() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="name@company.com"
               required
-              className="w-full pl-10 pr-4 py-3 bg-black border border-gray-800 rounded-lg text-sm text-white focus:border-terminal outline-none transition-all"
+              className="w-full pl-10 pr-4 py-3 bg-black border border-gray-800 rounded-xl text-sm text-white focus:border-terminal outline-none transition-all placeholder:text-gray-700"
             />
           </div>
         </div>
         <div>
-          <label className="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-1.5 block">Password</label>
+          <label className="text-[10px] uppercase tracking-widest font-black text-gray-500 mb-1.5 block">Password</label>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
             <input 
@@ -94,11 +110,11 @@ function LoginContent() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              className="w-full pl-10 pr-4 py-3 bg-black border border-gray-800 rounded-lg text-sm text-white focus:border-terminal outline-none transition-all"
+              className="w-full pl-10 pr-4 py-3 bg-black border border-gray-800 rounded-xl text-sm text-white focus:border-terminal outline-none transition-all placeholder:text-gray-700"
             />
           </div>
         </div>
-        <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 py-3 bg-terminal hover:bg-green-400 text-black font-bold rounded-lg transition-all disabled:opacity-50">
+        <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 py-3.5 bg-terminal hover:bg-green-400 text-black font-black uppercase tracking-widest text-xs rounded-xl transition-all disabled:opacity-50">
           {loading ? <Loader2 className="animate-spin" size={18} /> : 'Sign In'}
         </button>
       </form>
@@ -114,10 +130,10 @@ function LoginContent() {
 
       <div className="relative mb-6">
         <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-800"></div></div>
-        <div className="relative flex justify-center text-xs uppercase"><span className="bg-[#0d0d0d] px-2 text-gray-500 font-bold">Or</span></div>
+        <div className="relative flex justify-center text-xs uppercase"><span className="bg-[#0d0d0d] px-4 text-gray-600 font-black tracking-widest">Or</span></div>
       </div>
 
-      <button onClick={handleGoogleSignIn} disabled={loading} className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white text-gray-900 font-medium rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50">
+      <button onClick={handleGoogleSignIn} disabled={loading} className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white text-gray-900 font-bold rounded-xl hover:bg-gray-100 transition-colors disabled:opacity-50 text-sm">
         <svg className="w-5 h-5" viewBox="0 0 24 24">
           <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
           <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -132,7 +148,13 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center px-4">
+    <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center px-4 relative overflow-hidden">
+      {/* Aesthetic background elements */}
+      <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-20">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-terminal/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[120px]" />
+      </div>
+
       <Link href="/" className="flex items-center gap-3 mb-8 group relative z-10">
         <div className="w-12 h-12 flex items-center justify-center transition-transform group-hover:scale-110">
           <img src="/logo.svg" alt="Mojo Guardian" className="w-full h-full" />
@@ -143,7 +165,7 @@ export default function LoginPage() {
       </Link>
 
       <div className="relative z-10 w-full max-w-md">
-        <div className="relative bg-gray-900/60 backdrop-blur-xl border border-gray-800/50 rounded-2xl p-8 shadow-2xl">
+        <div className="relative bg-[#0d0d0d] border border-gray-800 rounded-2xl p-8 shadow-2xl">
           <Suspense fallback={<div className="flex items-center justify-center p-12"><Loader2 className="animate-spin text-terminal" size={32} /></div>}>
             <LoginContent />
           </Suspense>

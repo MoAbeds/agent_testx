@@ -12,7 +12,7 @@ export default function AddSiteForm() {
   const [domain, setDomain] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState<{ domain: string; apiKey: string } | null>(null);
+  const [success, setSuccess] = useState<{ domain: string; apiKey: string; platform?: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,7 +36,11 @@ export default function AddSiteForm() {
         throw new Error(data.error || 'Failed to create site');
       }
 
-      setSuccess({ domain: data.site.domain, apiKey: data.apiKey });
+      setSuccess({ 
+        domain: data.site.domain, 
+        apiKey: data.apiKey,
+        platform: data.site.platform 
+      });
       setDomain('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
@@ -92,6 +96,24 @@ export default function AddSiteForm() {
           <p className="text-gray-400 text-sm">
             <span className="text-gray-300 font-medium">{success.domain}</span> has been added.
           </p>
+
+          {success.platform === 'wordpress' && (
+            <div className="p-3 bg-blue-900/10 border border-blue-500/20 rounded-lg">
+              <p className="text-xs text-blue-400 font-medium flex items-center gap-2">
+                <Plus size={14} />
+                WordPress Detected: Please setup the Mojo Guardian WordPress plugin.
+              </p>
+            </div>
+          )}
+
+          {success.platform === 'nextjs' && (
+            <div className="p-3 bg-terminal/5 border border-terminal/20 rounded-lg">
+              <p className="text-xs text-terminal font-medium flex items-center gap-2">
+                <Plus size={14} />
+                Next.js Detected: Please setup our Next.js library.
+              </p>
+            </div>
+          )}
           
           <div className="space-y-1">
             <label className="text-xs text-gray-500">API Key (save this - shown only once)</label>

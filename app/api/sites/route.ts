@@ -28,20 +28,40 @@ export async function POST(request: NextRequest) {
     let platform: 'wordpress' | 'nextjs' | 'other' = 'other';
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       
-      const response = await fetch(`https://${normalizedDomain}`, { 
+      // Try HTTPS first, then fallback to HTTP
+      let response = await fetch(`https://${normalizedDomain}`, { 
         signal: controller.signal,
         headers: { 'User-Agent': 'MojoBot/1.0' }
       }).catch(() => null);
+
+      if (!response) {
+        response = await fetch(`http://${normalizedDomain}`, { 
+          signal: controller.signal,
+          headers: { 'User-Agent': 'MojoBot/1.0' }
+        }).catch(() => null);
+      }
       
       if (response) {
-        const text = await response.text();
-        const headers = Object.fromEntries(response.headers.entries());
+        const text = (await response.text()).toLowerCase();
+        const headers = Object.fromEntries(
+          Array.from(response.headers.entries()).map(([k, v]) => [k.toLowerCase(), v.toLowerCase()])
+        );
         
-        if (text.includes('wp-content') || text.includes('wp-includes') || headers['x-powered-by']?.toLowerCase().includes('wordpress')) {
+        const isWP = text.includes('wp-content') || 
+                     text.includes('wp-includes') || 
+                     text.includes('wp-json') ||
+                     headers['x-powered-by']?.includes('wordpress') ||
+                     headers['link']?.includes('wp-json');
+
+        const isNext = text.includes('_next/static') || 
+                       text.includes('__next_data__') ||
+                       headers['x-powered-by']?.includes('next.js');
+
+        if (isWP) {
           platform = 'wordpress';
-        } else if (text.includes('_next/static') || headers['x-powered-by']?.toLowerCase().includes('next.js')) {
+        } else if (isNext) {
           platform = 'nextjs';
         }
       }

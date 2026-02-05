@@ -55,8 +55,11 @@ function SerpsContent() {
     });
   }, [user?.uid, selectedSiteId]);
 
-  const handleSearch = async (kw?: string) => {
-    const targetKeyword = typeof kw === 'string' ? kw : keyword;
+  const handleSearch = async (kw?: any) => {
+    // If kw is a synthetic event (from onSubmit), treat it as undefined
+    const actualKw = typeof kw === 'string' ? kw : undefined;
+    const targetKeyword = actualKw || keyword;
+    
     if (!site?.id || !targetKeyword.trim()) return;
 
     setLoading(true);

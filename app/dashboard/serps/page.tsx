@@ -70,11 +70,16 @@ function SerpsContent() {
       });
       const data = await res.json();
       if (data.success) {
-        setResults(data.results);
+        setResults(data.results || []);
         setMyPosition(data.position);
+      } else {
+        setResults([]);
+        setMyPosition(-1);
       }
     } catch (error) {
       console.error(error);
+      setResults([]);
+      setMyPosition(-1);
     } finally {
       setLoading(false);
     }

@@ -9,6 +9,7 @@ import ScanButton from '@/components/ScanButton';
 import CompetitorWatchlist from '@/components/CompetitorWatchlist';
 import IndustryDeepDive from '@/components/IndustryDeepDive';
 import BacklinkSection from '@/components/BacklinkSection';
+import KeywordSniper from '@/components/KeywordSniper';
 import { Shield, Target, Search, Sparkles, Loader2, Zap, Globe, BrainCircuit } from 'lucide-react';
 import { useAuth } from '@/lib/hooks';
 import { db } from '@/lib/firebase';
@@ -205,6 +206,7 @@ function GuardianContent() {
       </header>
 
       <div className="lg:col-span-2 space-y-10">
+        <KeywordSniper siteId={site?.id} />
         <IndustryDeepDive siteId={site?.id} />
         <BacklinkSection siteId={site?.id} />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">

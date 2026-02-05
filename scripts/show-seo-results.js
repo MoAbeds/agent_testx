@@ -10,12 +10,10 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 async function showOptimizations() {
-  console.log("🔍 FETCHING ON-PAGE SEO RESULTS...\n");
 
   const rulesSnap = await db.collection('rules').where('type', '==', 'REWRITE_META').get();
   
   if (rulesSnap.empty) {
-    console.log("❌ No SEO optimizations found in the database.");
     return;
   }
 
@@ -31,13 +29,6 @@ async function showOptimizations() {
     
     const page = !pageSnap.empty ? pageSnap.docs[0].data() : {};
 
-    console.log(`📍 PATH: ${rule.targetPath}`);
-    console.log(`   [OLD TITLE]: ${page.title || 'Missing'}`);
-    console.log(`   [NEW TITLE]: ${payload.title}`);
-    console.log(`   ---`);
-    console.log(`   [OLD META]: ${page.metaDesc || 'Missing'}`);
-    console.log(`   [NEW META]: ${payload.metaDesc}`);
-    console.log(`   💡 REASONING: ${payload.reasoning}\n`);
   }
 }
 

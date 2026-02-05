@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, logoUrl, agencyName, primaryColor } = await req.json();
+    const { userId, logoUrl, agencyName, primaryColor, customDomain } = await req.json();
 
     if (!userId) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 });
@@ -17,7 +17,8 @@ export async function POST(req: NextRequest) {
       whitelabel: {
         logoUrl,
         agencyName,
-        primaryColor
+        primaryColor,
+        customDomain
       },
       updatedAt: new Date().toISOString()
     });

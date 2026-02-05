@@ -14,9 +14,7 @@ async function updateSecurityRules() {
   const newRules = fs.readFileSync(rulesPath, 'utf8');
   
   try {
-    console.log("🚀 Updating Firestore Security Rules...");
     await admin.securityRules().releaseFirestoreRulesetFromSource(newRules);
-    console.log("✅ Rules updated successfully!");
     
     // Also create the first site record to ensure the database is initialized
     const db = admin.firestore();
@@ -24,7 +22,6 @@ async function updateSecurityRules() {
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
       status: 'ready'
     });
-    console.log("✅ Firestore initialized.");
     
   } catch (error) {
     console.error("❌ Failed to update rules:", error.message);

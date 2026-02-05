@@ -22,7 +22,6 @@ async function fetchManifest() {
     if (response.data && response.data.rules) {
       manifestCache.rules = response.data.rules;
       manifestCache.timestamp = Date.now();
-      console.log('[Mojo SDK] Manifest updated:', Object.keys(manifestCache.rules).length, 'rules loaded.');
     }
   } catch (error) {
     console.error('[Mojo SDK] Failed to fetch manifest:', error.message);
@@ -42,7 +41,6 @@ const mojoMiddleware = function(req, res, next) {
 
   // 1. Handle Redirects (Highest priority)
   if (rule.redirectTo) {
-    console.log(`[Mojo SDK] 301 Redirect: ${req.path} -> ${rule.redirectTo}`);
     return res.redirect(301, rule.redirectTo);
   }
 

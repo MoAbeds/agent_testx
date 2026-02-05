@@ -24,5 +24,4 @@ app.get('/', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`User Client Server running at http://localhost:${PORT}`);
 });

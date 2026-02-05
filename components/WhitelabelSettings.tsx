@@ -8,6 +8,7 @@ export default function WhitelabelSettings({ user }: { user: any }) {
   const [logoUrl, setLogoUrl] = useState(user?.whitelabel?.logoUrl || '');
   const [agencyName, setAgencyName] = useState(user?.whitelabel?.agencyName || '');
   const [primaryColor, setPrimaryColor] = useState(user?.whitelabel?.primaryColor || '#22c55e');
+  const [customDomain, setCustomDomain] = useState(user?.whitelabel?.customDomain || '');
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
@@ -21,7 +22,8 @@ export default function WhitelabelSettings({ user }: { user: any }) {
           userId: user.uid,
           logoUrl,
           agencyName,
-          primaryColor
+          primaryColor,
+          customDomain
         })
       });
       if (res.ok) {
@@ -70,6 +72,18 @@ export default function WhitelabelSettings({ user }: { user: any }) {
               value={logoUrl}
               onChange={(e) => setLogoUrl(e.target.value)}
               placeholder="https://example.com/logo.svg"
+              className="w-full bg-black border border-gray-800 rounded-lg px-4 py-2.5 text-sm text-white focus:border-terminal outline-none"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 flex items-center gap-2">
+              <Globe size={12} /> Custom Domain
+            </label>
+            <input
+              type="text"
+              value={customDomain}
+              onChange={(e) => setCustomDomain(e.target.value)}
+              placeholder="seo.youragency.com"
               className="w-full bg-black border border-gray-800 rounded-lg px-4 py-2.5 text-sm text-white focus:border-terminal outline-none"
             />
           </div>

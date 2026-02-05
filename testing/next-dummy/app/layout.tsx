@@ -17,6 +17,17 @@ class MojoGuardian {
   getMetadata(path) {
     return this.rules[path] || null;
   }
+  getPageContent(path) {
+    const rule = this.rules[path];
+    if (rule && rule.type === 'INJECT_HTML') {
+      return {
+        html: rule.html,
+        title: rule.title,
+        description: rule.metaDesc || rule.metaDescription
+      };
+    }
+    return null;
+  }
 }
 
 const mojo = new MojoGuardian("mojo_0olio1pl57dg");

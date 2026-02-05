@@ -17,7 +17,6 @@ async function seed() {
     userId: 'test-user-123',
     createdAt: admin.firestore.FieldValue.serverTimestamp()
   });
-  console.log("✅ Local WordPress Test Site added to Firestore.");
   process.exit(0);
 }
 

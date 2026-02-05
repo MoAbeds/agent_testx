@@ -12,7 +12,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    console.log('[Autopilot] Starting global optimization cycle...');
     
     // 1. Get all sites
     const sitesSnap = await getDocs(collection(db, "sites"));
@@ -24,7 +23,6 @@ export async function GET(req: NextRequest) {
 
       // Only run for PRO users or if autopilot is enabled
       if (siteData.autopilotEnabled !== false) { 
-        console.log(`[Autopilot] Processing site: ${siteData.domain}`);
         
         try {
           // Trigger the Brain API for this site

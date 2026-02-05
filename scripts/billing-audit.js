@@ -11,7 +11,6 @@ admin.initializeApp({
 const db = admin.firestore();
 
 async function resetUnpaid() {
-  console.log('--- 🛡️ Mojo Billing Security Audit ---');
   const usersSnap = await db.collection('users').get();
   
   let count = 0;
@@ -19,7 +18,6 @@ async function resetUnpaid() {
     const data = doc.data();
     // If they are PRO or AGENCY but have NO subscriptionId, they might have exploited the rule
     if (data.plan && data.plan !== 'FREE' && !data.subscriptionId) {
-      console.log(`⚠️ User ${doc.id} (${data.email}) is ${data.plan} without a Sub ID. Resetting to FREE.`);
       await doc.ref.update({
         plan: 'FREE',
         auditedAt: new Date().toISOString()
@@ -28,7 +26,6 @@ async function resetUnpaid() {
     }
   }
   
-  console.log(`Audit complete. ${count} suspicious accounts reset.`);
 }
 
 resetUnpaid().catch(console.error);

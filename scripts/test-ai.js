@@ -7,7 +7,6 @@ async function list() {
     // but we can try a known one or check the error.
     const model = genAI.getGenerativeModel({ model: 'gemini-1.0-pro' });
     const result = await model.generateContent("hi");
-    console.log(result.response.text());
   } catch (e) {
     console.error(e);
   }

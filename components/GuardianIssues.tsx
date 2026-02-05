@@ -11,6 +11,7 @@ interface Issue {
   path: string;
   details: string | null;
   siteId?: string;
+  topic?: string;
 }
 
 export default function GuardianIssues({ initialIssues, siteId }: { initialIssues: Issue[], siteId: string }) {
@@ -117,14 +118,14 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
         body: JSON.stringify({ 
           siteId, 
           userId: user?.uid,
-          topic: details.topic, 
-          targetKeyword: details.targetKeyword,
+          topic: details.topic || issue.path.replace(/^\//, '').replace(/-/g, ' '), 
+          targetKeyword: details.targetKeyword || details.keyword,
           suggestedPath: issue.path
         })
       });
       const data = await res.json();
       if (data.success) {
-        setNotification({ message: `Page "${issue.path}" created and deployed!`, type: 'success' });
+        setNotification({ message: `Article "${issue.path}" generated and deployed!`, type: 'success' });
         setIssues(prev => prev.filter(i => i.id !== issue.id));
       }
     } catch (e) { setNotification({ message: "Generation failed.", type: 'error' }); } finally { setGenerating(null); }

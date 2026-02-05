@@ -14,8 +14,6 @@ async function main() {
     }
   });
 
-  console.log(`Local Site Created: ${site.domain}`);
-  console.log(`API KEY: ${site.apiKey}`);
 }
 
 main().catch(console.error).finally(() => prisma.$disconnect());

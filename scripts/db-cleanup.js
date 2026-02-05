@@ -9,7 +9,6 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 async function cleanupOrphanedSites() {
-  console.log("🧹 CLEANING UP ORPHANED SITES...");
   const sitesRef = db.collection('sites');
   const snap = await sitesRef.get();
   
@@ -17,12 +16,10 @@ async function cleanupOrphanedSites() {
   for (const doc of snap.docs) {
     const data = doc.data();
     if (!data.userId || data.userId === 'MISSING' || data.userId === 'test-user-123') {
-      console.log(`🗑️ Deleting ownerless site: ${data.domain} (${doc.id})`);
       await doc.ref.delete();
       deleted++;
     }
   }
-  console.log(`✅ Cleanup complete. Removed ${deleted} sites.`);
 }
 
 cleanupOrphanedSites();

@@ -35,7 +35,26 @@ class MojoGuardian {
 
     public function getMetadata($path) {
         $cleanPath = ($path === '/' || $path === '') ? '/' : rtrim($path, '/');
-        return $this->rules[$cleanPath] ?? null;
+        $rule = $this->rules[$cleanPath] ?? null;
+        if ($rule) {
+            return [
+                "title" => $rule['title'] ?? $rule['titleTag'],
+                "description" => $rule['metaDescription'] ?? $rule['metaDesc']
+            ];
+        }
+        return null;
+    }
+
+    public function getPageContent($path) {
+        $rule = $this->rules[$path] ?? null;
+        if ($rule && $rule['type'] === 'INJECT_HTML') {
+            return [
+                "html" => $rule['html'],
+                "title" => $rule['title'],
+                "description" => $rule['metaDesc'] ?? $rule['metaDescription']
+            ];
+        }
+        return null;
     }
 }
 ?>

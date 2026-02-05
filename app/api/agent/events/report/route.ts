@@ -1,37 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { logEvent, upsertPage } from '@/lib/db';
+import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { updateUserPlan } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const { type, path, details } = await request.json();
-    const authHeader = request.headers.get('Authorization');
-    const apiKey = authHeader?.replace('Bearer ', '');
+    const body = await req.json();
+    const eventType = body.event_type;
+    const resource = body.resource;
 
-    if (!apiKey) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const subscriptionId = resource.id;
+    const userId = resource.custom_id;
+    const planId = resource.plan_id;
 
-    // 1. Verify Site by API Key
-    const sitesRef = collection(db, "sites");
-    const qSite = query(sitesRef, where("apiKey", "==", apiKey));
-    const siteSnap = await getDocs(qSite);
-    if (siteSnap.empty) return NextResponse.json({ error: 'Invalid API Key' }, { status: 403 });
-    const site = { id: siteSnap.docs[0].id, ...siteSnap.docs[0].data() };
+    if (!userId) {
+      console.warn("[PayPal-Webhook] No custom_id (userId) found in webhook payload.");
+      return NextResponse.json({ success: true, message: "Ignored: No userId" });
+    }
 
+    // Determine plan type from PayPal Plan ID
+    let internalPlan = 'FREE';
+    if (planId === 'P-STARTER') internalPlan = 'STARTER';
+    if (planId === 'P-PRO') internalPlan = 'PRO';
+    if (planId === 'P-AGENCY') internalPlan = 'AGENCY';
 
-    // 2. Log the event
-    await logEvent(site.id, type, path, details);
+    if (eventType === 'BILLING.SUBSCRIPTION.ACTIVATED' || eventType === 'BILLING.SUBSCRIPTION.CREATED') {
+      await updateUserPlan(userId, internalPlan, subscriptionId);
+    }
 
-    // 3. If it's a 404, also create/update a Page record so it shows up in "Fix 404s"
-    if (type === '404_DETECTED') {
-      await upsertPage(site.id, path, { status: 404 });
+    if (eventType === 'BILLING.SUBSCRIPTION.CANCELLED' || eventType === 'BILLING.SUBSCRIPTION.EXPIRED') {
+      await updateUserPlan(userId, 'FREE', subscriptionId);
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Event report error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('PayPal Webhook Error:', error.message);
+    return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 });
   }
 }

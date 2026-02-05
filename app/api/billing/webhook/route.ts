@@ -5,32 +5,29 @@ import { updateUserPlan } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-// PayPal Webhook Event Types:
-// BILLING.SUBSCRIPTION.CREATED
-// BILLING.SUBSCRIPTION.ACTIVATED
-// BILLING.SUBSCRIPTION.CANCELLED
-// BILLING.SUBSCRIPTION.EXPIRED
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const eventType = body.event_type;
     const resource = body.resource;
 
-
-    // For subscriptions, the 'custom_id' or 'subscriber.email_address' 
-    // is usually used to map to our internal user.
-    // Ideally, we passed userId in 'custom_id' during checkout.
     const subscriptionId = resource.id;
-    const userId = resource.custom_id; 
+    const userId = resource.custom_id;
+    const planId = resource.plan_id;
 
     if (!userId) {
       console.warn("[PayPal-Webhook] No custom_id (userId) found in webhook payload.");
       return NextResponse.json({ success: true, message: "Ignored: No userId" });
     }
 
+    // Determine plan type from PayPal Plan ID
+    let internalPlan = 'FREE';
+    if (planId === 'P-STARTER') internalPlan = 'STARTER';
+    if (planId === 'P-PRO') internalPlan = 'PRO';
+    if (planId === 'P-AGENCY') internalPlan = 'AGENCY';
+
     if (eventType === 'BILLING.SUBSCRIPTION.ACTIVATED' || eventType === 'BILLING.SUBSCRIPTION.CREATED') {
-      await updateUserPlan(userId, 'PRO', subscriptionId);
+      await updateUserPlan(userId, internalPlan, subscriptionId);
     }
 
     if (eventType === 'BILLING.SUBSCRIPTION.CANCELLED' || eventType === 'BILLING.SUBSCRIPTION.EXPIRED') {

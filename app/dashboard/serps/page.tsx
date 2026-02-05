@@ -89,7 +89,7 @@ function SerpsContent() {
           <h1 className="text-3xl font-bold text-white mb-2 font-serif">SERP Tracker</h1>
           <p className="text-gray-400">Analyze real-time Google search results and your positioning.</p>
         </div>
-        <SiteManager sites={allSites} currentSiteId={site?.id} />
+        <SiteManager sites={allSites} currentSiteId={site?.id || ''} />
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Loader2, Check, Copy, X } from 'lucide-react';
+import { Plus, Loader2, Check, Copy, X, Shield } from 'lucide-react';
 import { useAuth } from '@/lib/hooks';
 
 export default function AddSiteForm() {

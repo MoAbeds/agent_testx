@@ -23,7 +23,10 @@ export default function OnboardingChecklist({ user, sites }: { user: any, sites:
       title: 'Connect Your First Domain',
       description: 'Add the website you want Mojo to protect.',
       completed: hasSite,
-      action: () => document.getElementById('add-site-button')?.scrollIntoView({ behavior: 'smooth' }),
+      action: () => {
+        const event = new CustomEvent('mojo:open-add-site');
+        window.dispatchEvent(event);
+      },
       icon: Globe
     },
     {

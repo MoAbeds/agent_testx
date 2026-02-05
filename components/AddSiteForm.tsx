@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Loader2, Check, Copy, X, Shield } from 'lucide-react';
 import { useAuth } from '@/lib/hooks';
@@ -9,6 +9,17 @@ export default function AddSiteForm() {
   const router = useRouter();
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Listen for global "Open Add Site" event from onboarding
+  useEffect(() => {
+    const handleOpenEvent = () => {
+      setIsOpen(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' }); // Ensure it's visible
+    };
+    window.addEventListener('mojo:open-add-site', handleOpenEvent);
+    return () => window.removeEventListener('mojo:open-add-site', handleOpenEvent);
+  }, []);
+
   const [domain, setDomain] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

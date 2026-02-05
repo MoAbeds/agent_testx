@@ -147,7 +147,7 @@ export default function AddSiteForm() {
           )}
           
           <div className="space-y-1">
-            <label className="text-xs text-gray-500">API Key (save this - shown only once)</label>
+            <label className="text-xs text-gray-500">API Key</label>
             <div className="flex items-center gap-2">
               <code className="flex-1 px-3 py-2 bg-[#0a0a0a] border border-gray-800 rounded text-xs text-terminal font-mono truncate">
                 {success.apiKey}

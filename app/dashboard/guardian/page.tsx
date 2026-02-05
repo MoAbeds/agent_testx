@@ -8,7 +8,7 @@ import SiteManager from '@/components/SiteManager';
 import ScanButton from '@/components/ScanButton';
 import CompetitorWatchlist from '@/components/CompetitorWatchlist';
 import IndustryDeepDive from '@/components/IndustryDeepDive';
-import { Shield, Target, Search, Sparkles, Loader2, Zap, Globe } from 'lucide-react';
+import { Shield, Target, Search, Sparkles, Loader2, Zap, Globe, BrainCircuit } from 'lucide-react';
 import { useAuth } from '@/lib/hooks';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, limit, getDocs } from 'firebase/firestore';
@@ -23,6 +23,7 @@ function GuardianContent() {
   const [issues, setIssues] = useState<any[]>([]);
   const [auditEvents, setAuditEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [brainstorming, setBrainstorming] = useState(false);
 
   const selectedSiteId = searchParams.get('siteId');
 
@@ -98,6 +99,26 @@ function GuardianContent() {
     return () => unsubscribeEvents();
   }, [site?.id, user?.uid]);
 
+  const runBrain = async () => {
+    if (!site?.id) return;
+    setBrainstorming(true);
+    try {
+      const res = await fetch('/api/agent/brain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteId: site.id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`Mojo Brain deployed ${data.actionsDeployed} strategic ranking actions! Check the Rules Engine.`);
+      }
+    } catch (e) {
+      alert("Brain activation failed.");
+    } finally {
+      setBrainstorming(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -142,6 +163,14 @@ function GuardianContent() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+            <button 
+              onClick={runBrain}
+              disabled={brainstorming}
+              className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-[0_0_15px_rgba(147,51,234,0.3)] disabled:opacity-50"
+            >
+              {brainstorming ? <Loader2 className="animate-spin" size={16} /> : <BrainCircuit size={16} />}
+              {brainstorming ? 'Thinking...' : 'Activate Mojo Brain'}
+            </button>
             <div className="flex items-center gap-2">
               <SiteManager sites={allSites} currentSiteId={site?.id} />
               <div className="w-32">

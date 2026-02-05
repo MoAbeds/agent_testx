@@ -12,6 +12,7 @@ import AddSiteForm from '@/components/AddSiteForm';
 import ScanButton from '@/components/ScanButton';
 import OptimizeButton from '@/components/OptimizeButton';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
+import ReasoningLedger from '@/components/ReasoningLedger';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -19,6 +20,7 @@ export default function Dashboard() {
   const [allSitesData, setAllSitesData] = useState<any[]>([]);
   const [pages, setPages] = useState<any[]>([]);
   const [latestRule, setLatestRule] = useState<any>(null);
+  const [allActiveRules, setAllActiveRules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [userSiteIds, setUserSiteIds] = useState<string[]>([]);
 
@@ -90,8 +92,10 @@ export default function Dashboard() {
             (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
           );
         setLatestRule(sorted[0]);
+        setAllActiveRules(sorted.slice(0, 5));
       } else {
         setLatestRule(null);
+        setAllActiveRules([]);
       }
     });
   }, [userSiteIds, user?.uid]);
@@ -181,6 +185,8 @@ export default function Dashboard() {
                    </div>
                )}
             </div>
+
+            <ReasoningLedger rules={allActiveRules} />
 
             <div>
                 <h2 className="text-xl font-bold text-gray-100 mb-4 font-serif">Discovered Pages</h2>

@@ -33,9 +33,11 @@ export function useAuth() {
             setDoc(userRef, {
               email: u.email,
               plan: 'FREE',
+              bandwidth: 5,
+              lastBandwidthReset: serverTimestamp(),
               createdAt: serverTimestamp()
             }, { merge: true });
-            setUser({ ...u, plan: 'FREE' });
+            setUser({ ...u, plan: 'FREE', bandwidth: 5 });
           }
         });
       } else {

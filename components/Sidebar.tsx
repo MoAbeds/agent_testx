@@ -87,6 +87,20 @@ export function Sidebar() {
         </nav>
 
         <div className="p-4 border-t border-gray-800 bg-black/20">
+          {/* Neural Bandwidth indicator */}
+          <div className="mb-4 px-2">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Neural Bandwidth</span>
+              <span className="text-[10px] font-mono text-terminal">{user?.bandwidth || 0}/5 Strikes</span>
+            </div>
+            <div className="h-1 w-full bg-gray-900 rounded-full overflow-hidden border border-gray-800">
+              <div 
+                className="h-full bg-terminal transition-all duration-1000 shadow-[0_0_8px_rgba(34,197,94,0.4)]" 
+                style={{ width: `${((user?.bandwidth || 0) / 5) * 100}%` }}
+              />
+            </div>
+          </div>
+
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-700 to-gray-800 flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white uppercase border border-gray-700">
               {user?.displayName?.substring(0, 2) || user?.email?.substring(0, 2) || 'AD'}

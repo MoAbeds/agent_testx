@@ -50,6 +50,9 @@ export async function POST(req: NextRequest) {
       TASK:
       Analyze the current status and generate the next 3 HIGH-IMPACT SEO actions.
       Actions must be "Rules" (Title/Meta/Content overrides) that will be pushed to the live agent.
+      
+      IMPORTANT: You must provide a "reasoning" string for each rule that explains exactly WHY this move was made based on competitive data or SEO first principles.
+      
       Return ONLY JSON (an array of rules).
     `;
 
@@ -58,20 +61,25 @@ export async function POST(req: NextRequest) {
 
     const createdRules = [];
     for (const rule of rulesToCreate) {
+      const payload = typeof rule.payload === 'string' ? JSON.parse(rule.payload) : rule.payload;
+      
       const newRule = {
         siteId,
         targetPath: rule.targetPath,
         type: rule.type || 'SEO_OPTIMIZATION',
-        payload: JSON.stringify(rule.payload),
+        payload: JSON.stringify(payload),
+        reasoning: rule.reasoning || payload.reasoning || "Strategic authority optimization",
         isActive: true,
-        confidence: rule.payload.confidence || 0.9,
+        confidence: rule.confidence || payload.confidence || 0.9,
         createdAt: serverTimestamp()
       };
       const docRef = await addDoc(collection(db, "rules"), newRule);
       createdRules.push({ id: docRef.id, ...newRule });
       
       await logEvent(siteId, 'AI_STRATEGIC_FIX', rule.targetPath, { 
-        message: `Mojo Brain deployed ranking optimization: ${rule.payload.reasoning}`
+        message: `Mojo Brain deployed ranking optimization: ${newRule.reasoning}`,
+        reasoning: newRule.reasoning,
+        ruleId: docRef.id
       });
     }
 

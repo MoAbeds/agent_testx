@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from "@/lib/firebase";
-import { doc, getDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, increment } from "firebase/firestore";
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { logEvent } from '@/lib/db';
 
@@ -17,6 +17,18 @@ export async function POST(req: NextRequest) {
     const siteSnap = await getDoc(siteRef);
     if (!siteSnap.exists() || siteSnap.data().userId !== userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
 
+    // 🧠 CHECK NEURAL BANDWIDTH
+    const userRef = doc(db, "users", userId);
+    const userSnap = await getDoc(userRef);
+    const userData = userSnap.data();
+    
+    if (userData && (userData.bandwidth || 0) <= 0) {
+      return NextResponse.json({ 
+        error: 'Insufficient Neural Bandwidth. Bandwidth resets every 24 hours.',
+        insufficientBandwidth: true 
+      }, { status: 403 });
+    }
+
     const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
     const prompt = `Elite SEO Content Architect v4.0
 TASK: Write a high-performance SEO blog post.
@@ -31,8 +43,10 @@ REQUIREMENTS:
 4. Include a Call-to-Action (CTA) div at the end with a button.
 5. Content must be at least 600 words, highly professional, and optimized for semantic ranking.
 
-Also provide a SEO metadata object.
-Final response must be JSON: { "html": "...", "title": "...", "metaDesc": "..." }`;
+REASONING:
+Explain WHY this content will rank. Cite semantic keywords and structural logic.
+
+Final response must be JSON: { "html": "...", "title": "...", "metaDesc": "...", "reasoning": "..." }`;
 
     const result = await model.generateContent(prompt);
     const rawText = result.response.text().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
@@ -47,11 +61,17 @@ Final response must be JSON: { "html": "...", "title": "...", "metaDesc": "..." 
         html: article.html,
         title: article.title,
         metaDesc: article.metaDesc,
+        reasoning: article.reasoning,
         isNewPage: true
       }),
       isActive: true,
       confidence: 0.98,
       createdAt: serverTimestamp()
+    });
+
+    // 📉 DECREMENT BANDWIDTH
+    await updateDoc(userRef, {
+      bandwidth: increment(-1)
     });
 
     await logEvent(siteId, 'AUTO_CONTENT_GEN', article.title, { 

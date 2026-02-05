@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSite } from '@/lib/db';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +22,21 @@ export async function POST(request: NextRequest) {
       .replace(/^https?:\/\//, '')
       .replace(/\/+$/, '')
       .toLowerCase();
+
+    // 1. Check if site already exists for this user
+    const sitesQuery = query(
+      collection(db, "sites"), 
+      where("userId", "==", userId),
+      where("domain", "==", normalizedDomain)
+    );
+    const existingSites = await getDocs(sitesQuery);
+    
+    if (!existingSites.empty) {
+      return NextResponse.json(
+        { error: 'This site has already been added to your account.' },
+        { status: 400 }
+      );
+    }
 
     // Create the site in Firestore
     const { id, apiKey } = await createSite(userId, normalizedDomain);

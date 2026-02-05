@@ -9,6 +9,7 @@ import {
   Plug, 
   User, 
   ShieldCheck, 
+  Shield,
   Menu, 
   X,
   Zap,

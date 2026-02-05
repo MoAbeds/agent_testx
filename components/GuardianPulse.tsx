@@ -1,7 +1,7 @@
 'use client';
 
 import { db } from '@/lib/firebase';
-import { collection, query, limit, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, limit, onSnapshot, orderBy, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { Activity, Trophy, Zap, Globe } from 'lucide-react';
 

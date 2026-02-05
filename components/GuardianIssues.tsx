@@ -57,7 +57,7 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
       const res = await fetch('/api/audit/speed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ siteId, url: window.location.origin })
+        body: JSON.stringify({ siteId, userId: user?.uid, url: window.location.origin })
       });
       const data = await res.json();
       if (data.success) setNotification({ message: "Speed audit complete!", type: 'success' });
@@ -71,7 +71,7 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
       const res = await fetch('/api/seo/internal-links', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ siteId })
+        body: JSON.stringify({ siteId, userId: user?.uid })
       });
       const data = await res.json();
       if (data.success) setNotification({ message: `Found ${data.opportunitiesFound} link opportunities!`, type: 'success' });
@@ -85,7 +85,7 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
       const res = await fetch('/api/seo/backlink-scout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ siteId })
+        body: JSON.stringify({ siteId, userId: user?.uid })
       });
       const data = await res.json();
       if (data.success) setNotification({ message: `Scouted ${data.opportunities} backlink prospects!`, type: 'success' });
@@ -99,7 +99,7 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
       const res = await fetch('/api/seo/content-gaps', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ siteId })
+        body: JSON.stringify({ siteId, userId: user?.uid })
       });
       const data = await res.json();
       if (data.success) setNotification({ message: `Identified ${data.gapsFound} high-impact content gaps!`, type: 'success' });
@@ -116,6 +116,7 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           siteId, 
+          userId: user?.uid,
           topic: details.topic, 
           targetKeyword: details.targetKeyword,
           suggestedPath: issue.path
@@ -143,7 +144,11 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
     if (isFreePlan) return setNotification({ message: "Fixing is a Pro feature.", type: "info" });
     setLoading(true);
     try {
-      const res = await fetch('/api/agent/fix-404', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ siteId }) });
+      const res = await fetch('/api/agent/fix-404', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ siteId, userId: user?.uid }) 
+      });
       const data = await res.json();
       if (data.success) {
         setNotification({ message: `Success! Auto-fixed broken links.`, type: 'success' });
@@ -156,7 +161,11 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
     if (isFreePlan) return setNotification({ message: "AI SEO Gaps require a Pro plan.", type: "info" });
     setOptimizing(true);
     try {
-      const res = await fetch('/api/agent/fix-gaps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ siteId }) });
+      const res = await fetch('/api/agent/fix-gaps', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ siteId, userId: user?.uid }) 
+      });
       const data = await res.json();
       if (data.success) {
         setNotification({ message: `Successfully optimized pages!`, type: 'success' });

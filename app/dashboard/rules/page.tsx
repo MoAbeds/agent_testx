@@ -63,7 +63,7 @@ function RulesContent() {
       const res = await fetch('/api/rules/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ruleId, siteId, isActive: !currentStatus })
+        body: JSON.stringify({ ruleId, siteId, isActive: !currentStatus, userId: user?.uid })
       });
       if (!res.ok) throw new Error("Failed to update rule");
     } catch (e) {

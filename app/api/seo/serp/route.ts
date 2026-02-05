@@ -52,8 +52,6 @@ export async function POST(request: NextRequest) {
     });
 
     // 📈 LOG RANK HISTORY
-    // We only log if a scan was performed successfully. 
-    // Position 0 or -1 means not in top 100.
     await addDoc(collection(db, "rank_history"), {
       siteId,
       keyword,
@@ -62,18 +60,22 @@ export async function POST(request: NextRequest) {
     });
 
     // Fetch last 10 historical points for the chart
+    // SECURITY: We fetch without complex sorting to avoid mandatory composite index errors in production
     const historyQ = query(
       collection(db, "rank_history"),
       where("siteId", "==", siteId),
       where("keyword", "==", keyword),
-      orderBy("timestamp", "desc"),
-      limit(10)
+      limit(20)
     );
     const historySnap = await getDocs(historyQ);
-    const history = historySnap.docs.map(d => ({
-      position: d.data().position,
-      date: d.data().timestamp?.toDate?.()?.toLocaleDateString() || 'Just now'
-    })).reverse();
+    const history = historySnap.docs
+      .map(d => ({
+        position: d.data().position,
+        timestamp: d.data().timestamp?.seconds || 0,
+        date: d.data().timestamp?.toDate?.()?.toLocaleDateString() || 'Just now'
+      }))
+      .sort((a, b) => a.timestamp - b.timestamp) // Sort in memory
+      .slice(-10); // Take latest 10
 
     return NextResponse.json({
       success: true,

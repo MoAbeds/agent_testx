@@ -7,12 +7,25 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const { ruleId, siteId, isActive } = await request.json();
-    if (!ruleId || !siteId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+    const { ruleId, siteId, isActive, userId } = await request.json();
+    if (!ruleId || !siteId || !userId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+
+    // 🔒 OWNERSHIP VERIFICATION (CRITICAL)
+    const siteRef = doc(db, "sites", siteId);
+    const siteSnap = await getDoc(siteRef);
+    if (!siteSnap.exists() || siteSnap.data().userId !== userId) {
+      console.error(`[SECURITY] AUTH VIOLATION: User ${userId} tried to update Rule ${ruleId} for Site ${siteId}`);
+      return NextResponse.json({ error: 'Unauthorized access' }, { status: 403 });
+    }
 
     const ruleRef = doc(db, "rules", ruleId);
     const ruleSnap = await getDoc(ruleRef);
     if (!ruleSnap.exists()) return NextResponse.json({ error: 'Rule not found' }, { status: 404 });
+
+    // Verify rule actually belongs to the site
+    if (ruleSnap.data().siteId !== siteId) {
+      return NextResponse.json({ error: 'Data mismatch' }, { status: 400 });
+    }
 
     // Update status
     await updateDoc(ruleRef, { isActive: !!isActive });

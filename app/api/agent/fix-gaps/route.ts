@@ -10,61 +10,51 @@ const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_KEY || '');
 
 export async function POST(request: NextRequest) {
   try {
-    const { siteId } = await request.json();
-    if (!siteId) return NextResponse.json({ error: 'siteId is required' }, { status: 400 });
+    const { siteId, userId } = await request.json();
+    if (!siteId || !userId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
 
     const siteRef = doc(db, "sites", siteId);
     const siteSnap = await getDoc(siteRef);
     if (!siteSnap.exists()) return NextResponse.json({ error: 'Site not found' }, { status: 404 });
-    const site = siteSnap.data();
 
-    const gapsQ = query(collection(db, "events"), where("siteId", "==", siteId), where("type", "==", "SEO_GAP"));
-    const gapsSnap = await getDocs(gapsQ);
-    if (gapsSnap.empty) return NextResponse.json({ success: true, message: 'No gaps' });
-
-    let siteKeywords = [];
-    if (site.targetKeywords) {
-      try { siteKeywords = JSON.parse(site.targetKeywords).detailed?.map((k: any) => k.keyword) || []; } catch (e) {}
+    // 🔒 OWNERSHIP VERIFICATION
+    if (siteSnap.data().userId !== userId) {
+      console.error(`[SECURITY] AUTH VIOLATION: User ${userId} tried to Fix Gaps for Site ${siteId}`);
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
+
+    const pagesQ = query(collection(db, "pages"), where("siteId", "==", siteId));
+    const pagesSnap = await getDocs(pagesQ);
+    const pages = pagesSnap.docs.map(d => d.data());
 
     const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
-    let count = 0;
+    const prompt = `Elite SEO AI Prompt Architecture v2.0
+SEO Meta-Tag Architect
+CONTEXT:
+Pages to optimize: ${JSON.stringify(pages.slice(0, 10).map(p => ({ path: p.path, currentTitle: p.title })))}
+TASK:
+Generate optimized titles and meta descriptions.
+Return ONLY JSON: [{"path": "/...", "title": "...", "metaDesc": "...", "reasoning": "..."}]`;
 
-    for (const gapDoc of gapsSnap.docs.slice(0, 5)) {
-      const gap = gapDoc.data();
-      const pageQ = query(collection(db, "pages"), where("siteId", "==", siteId), where("path", "==", gap.path));
-      const pageSnap = await getDocs(pageQ);
-      if (pageSnap.empty) continue;
-      const page = pageSnap.docs[0].data();
+    const result = await model.generateContent(prompt);
+    const optimizations = JSON.parse(result.response.text().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim());
 
-      const prompt = `Elite SEO AI Prompt Architecture v2.0
-SEO Fixer
-Website: ${site.domain}
-Path: ${page.path}
-Keywords: [${siteKeywords.join(', ')}]
-Return ONLY JSON: {"title": "...", "metaDesc": "...", "reasoning": "..."}`;
-
-      try {
-        const result = await model.generateContent(prompt);
-        const optimized = JSON.parse(result.response.text().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim());
-        
-        const ruleRef = await addDoc(collection(db, "rules"), {
-          siteId,
-          targetPath: page.path,
-          type: 'REWRITE_META',
-          payload: JSON.stringify(optimized),
-          isActive: true,
-          confidence: 0.95,
-          createdAt: serverTimestamp()
-        });
-
-        await logEvent(siteId, 'AUTO_FIX', page.path, { message: `Optimized SEO`, ruleId: ruleRef.id });
-        count++;
-      } catch (e) {}
+    for (const opt of optimizations) {
+      const ruleRef = await addDoc(collection(db, "rules"), {
+        siteId,
+        targetPath: opt.path,
+        type: 'SEO_OPTIMIZATION',
+        payload: JSON.stringify({ title: opt.title, metaDesc: opt.metaDesc, reasoning: opt.reasoning }),
+        isActive: true,
+        confidence: 0.95,
+        createdAt: serverTimestamp()
+      });
+      await logEvent(siteId, 'AUTO_FIX', opt.path, { message: `Optimized metadata: ${opt.reasoning}`, ruleId: ruleRef.id });
     }
 
-    return NextResponse.json({ success: true, appliedFixes: count });
+    return NextResponse.json({ success: true, optimizedCount: optimizations.length });
   } catch (error) {
+    console.error('Fix-Gaps error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

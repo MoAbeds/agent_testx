@@ -10,29 +10,29 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const { siteId } = await req.json();
-    if (!siteId) return NextResponse.json({ error: 'Missing siteId' }, { status: 400 });
+    const { siteId, userId } = await req.json();
+    if (!siteId || !userId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
 
     const siteRef = doc(db, "sites", siteId);
     const siteSnap = await getDoc(siteRef);
     if (!siteSnap.exists()) return NextResponse.json({ error: 'Site not found' }, { status: 404 });
     const siteData = siteSnap.data();
 
-    // 1. GATHER ALL CONTEXT (The Knowledge Base)
-    // - Industry Deep Dive
-    // - Target Keywords (SERP data)
-    // - Page Audit Data
+    // 🔒 OWNERSHIP VERIFICATION
+    if (siteData.userId !== userId) {
+      console.error(`[SECURITY] AUTH VIOLATION: User ${userId} tried to activate Brain for Site ${siteId}`);
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
+
     const pagesSnap = await getDocs(query(collection(db, "pages"), where("siteId", "==", siteId)));
     const pages = pagesSnap.docs.map(d => d.data());
 
     const deepDive = siteData.industryDeepDive ? JSON.parse(siteData.industryDeepDive) : null;
     const targetKeywords = siteData.targetKeywords ? JSON.parse(siteData.targetKeywords) : null;
 
-    // Fetch existing rules to provide context to the brain
     const existingRulesSnap = await getDocs(query(collection(db, "rules"), where("siteId", "==", siteId), where("isActive", "==", true)));
     const existingRules = existingRulesSnap.docs.map(d => d.data());
 
-    // 2. ACTIVATE ELITE STRATEGIST BRAIN
     const model = genAI.getGenerativeModel({ 
       model: 'gemini-3-flash-preview',
       systemInstruction: `You are the Mojo Elite SEO Strategist. Your SOLE mission is to rank the website "${siteData.domain}" to Page 1 of Google. 
@@ -50,31 +50,12 @@ export async function POST(req: NextRequest) {
       TASK:
       Analyze the current status and generate the next 3 HIGH-IMPACT SEO actions.
       Actions must be "Rules" (Title/Meta/Content overrides) that will be pushed to the live agent.
-      
-      Focus on:
-      1. Aggressive Keyword Targeting (Commercial Intent).
-      2. Click-Through Rate (CTR) Optimization for metadata.
-      3. Semantic Gap Filling.
-
-      Return ONLY JSON (an array of rules):
-      [
-        {
-          "targetPath": "/path",
-          "type": "SEO_OPTIMIZATION",
-          "payload": {
-            "title": "Optimized Title (max 60 chars)",
-            "metaDescription": "Optimized Meta (max 160 chars)",
-            "reasoning": "Why this will help rank #1",
-            "confidence": 0.98
-          }
-        }
-      ]
+      Return ONLY JSON (an array of rules).
     `;
 
     const result = await model.generateContent(contextPrompt);
     const rulesToCreate = JSON.parse(result.response.text().replace(/```json|```/g, '').trim());
 
-    // 3. DEPLOY RULES TO LIVE AGENT
     const createdRules = [];
     for (const rule of rulesToCreate) {
       const newRule = {
@@ -94,11 +75,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      actionsDeployed: createdRules.length,
-      rules: createdRules
-    });
+    return NextResponse.json({ success: true, actionsDeployed: createdRules.length, rules: createdRules });
 
   } catch (error: any) {
     console.error("Mojo Brain Error:", error);

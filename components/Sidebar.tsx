@@ -85,12 +85,17 @@ export function Sidebar() {
 
         <div className="p-4 border-t border-gray-800 bg-black/20">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-gray-700 flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white uppercase">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-700 to-gray-800 flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white uppercase border border-gray-700">
               {user?.displayName?.substring(0, 2) || user?.email?.substring(0, 2) || 'AD'}
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-white truncate">{user?.displayName || 'Active User'}</p>
-              <p className="text-xs text-gray-500 truncate">{user?.email || 'Pro Plan'}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <Shield size={10} className={user?.plan && user.plan !== 'FREE' ? "text-terminal" : "text-gray-500"} />
+                <span className={`text-[10px] font-black uppercase tracking-tighter ${user?.plan && user.plan !== 'FREE' ? "text-terminal" : "text-gray-500"}`}>
+                  {user?.plan || 'FREE'} PLAN
+                </span>
+              </div>
             </div>
           </div>
         </div>

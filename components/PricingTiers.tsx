@@ -37,6 +37,8 @@ export default function PricingTiers() {
   const { user } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
 
+  const currentPlanId = user?.plan === 'STARTER' ? 'P-STARTER' : user?.plan === 'PRO' ? 'P-PRO' : user?.plan === 'AGENCY' ? 'P-AGENCY' : null;
+
   const handleSuccess = (data: any) => {
     alert(`Subscription successful! Your account is being upgraded.`);
     window.location.href = '/dashboard';
@@ -49,71 +51,79 @@ export default function PricingTiers() {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-      {PLANS.map((plan) => (
-        <div key={plan.tier} className={`relative p-8 rounded-2xl border transition-all hover:translate-y-[-4px] ${plan.isPopular ? 'bg-gradient-to-b from-gray-900 to-black border-terminal shadow-2xl shadow-terminal/10' : 'bg-[#0d0d0d] border-gray-800'}`}>
-          {plan.isPopular && (
-            <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-terminal text-black text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-widest">
-              Most Popular
-            </span>
-          )}
-          
-          <div className="mb-8">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${plan.isPopular ? 'bg-terminal/20 text-terminal' : 'bg-gray-800 text-gray-400'}`}>
-              <plan.icon size={24} />
-            </div>
-            <h3 className="text-xl font-bold mb-2">{plan.tier}</h3>
-            <div className="flex items-baseline gap-1 mb-4">
-              <span className="text-4xl font-black">{plan.price}</span>
-              <span className="text-gray-500 text-sm">/mo</span>
-            </div>
-            <p className="text-gray-400 text-sm leading-relaxed">{plan.description}</p>
-          </div>
+      {PLANS.map((plan) => {
+        const isCurrentPlan = currentPlanId === plan.id;
 
-          <ul className="space-y-4 mb-8">
-            {plan.features.map((feature: string, i: number) => (
-              <li key={i} className="flex items-start gap-3 text-sm text-gray-300">
-                <Check size={16} className="text-terminal shrink-0 mt-0.5" />
-                {feature}
-              </li>
-            ))}
-          </ul>
-
-          <div className="mt-auto">
-            {selectedPlan?.tier === plan.tier ? (
-              <div className="animate-in fade-in zoom-in duration-300">
-                {user ? (
-                  <PayPalButton 
-                    planId={plan.id} 
-                    userId={user.uid}
-                    onSuccess={handleSuccess} 
-                    onError={handleError} 
-                  />
-                ) : (
-                  <button 
-                    onClick={() => window.location.href = '/login'}
-                    className="w-full py-4 rounded-xl bg-white text-black font-bold"
-                  >
-                    Login to Subscribe
-                  </button>
-                )}
-                <button 
-                  onClick={() => setSelectedPlan(null)}
-                  className="w-full mt-2 text-xs text-gray-500 hover:text-white transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <button 
-                onClick={() => setSelectedPlan(plan)}
-                className={`block w-full py-4 rounded-xl text-center font-bold transition-all ${plan.isPopular ? 'bg-terminal text-black hover:bg-green-400' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
-              >
-                Choose {plan.tier}
-              </button>
+        return (
+          <div key={plan.tier} className={`relative p-8 rounded-2xl border transition-all hover:translate-y-[-4px] ${plan.isPopular ? 'bg-gradient-to-b from-gray-900 to-black border-terminal shadow-2xl shadow-terminal/10' : 'bg-[#0d0d0d] border-gray-800'}`}>
+            {plan.isPopular && (
+              <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-terminal text-black text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-widest">
+                Most Popular
+              </span>
             )}
+            
+            <div className="mb-8">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${plan.isPopular ? 'bg-terminal/20 text-terminal' : 'bg-gray-800 text-gray-400'}`}>
+                <plan.icon size={24} />
+              </div>
+              <h3 className="text-xl font-bold mb-2">{plan.tier}</h3>
+              <div className="flex items-baseline gap-1 mb-4">
+                <span className="text-4xl font-black">{plan.price}</span>
+                <span className="text-gray-500 text-sm">/mo</span>
+              </div>
+              <p className="text-gray-400 text-sm leading-relaxed">{plan.description}</p>
+            </div>
+
+            <ul className="space-y-4 mb-8">
+              {plan.features.map((feature: string, i: number) => (
+                <li key={i} className="flex items-start gap-3 text-sm text-gray-300">
+                  <Check size={16} className="text-terminal shrink-0 mt-0.5" />
+                  {feature}
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-auto">
+              {isCurrentPlan ? (
+                <div className="w-full py-4 rounded-xl bg-gray-800/50 border border-gray-700 text-gray-500 text-center font-bold">
+                  Current Plan
+                </div>
+              ) : selectedPlan?.tier === plan.tier ? (
+                <div className="animate-in fade-in zoom-in duration-300">
+                  {user ? (
+                    <PayPalButton 
+                      planId={plan.id} 
+                      userId={user.uid}
+                      onSuccess={handleSuccess} 
+                      onError={handleError} 
+                    />
+                  ) : (
+                    <button 
+                      onClick={() => window.location.href = '/login'}
+                      className="w-full py-4 rounded-xl bg-white text-black font-bold"
+                    >
+                      Login to Subscribe
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => setSelectedPlan(null)}
+                    className="w-full mt-2 text-xs text-gray-500 hover:text-white transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => setSelectedPlan(plan)}
+                  className={`block w-full py-4 rounded-xl text-center font-bold transition-all ${plan.isPopular ? 'bg-terminal text-black hover:bg-green-400' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
+                >
+                  {user?.plan && user.plan !== 'FREE' ? 'Switch to ' + plan.tier : `Choose ${plan.tier}`}
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

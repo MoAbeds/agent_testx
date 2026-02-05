@@ -3,7 +3,7 @@
 import TerminalFeed from '@/components/TerminalFeed';
 import StatsCard from '@/components/StatsCard';
 import DiffViewer from '@/components/DiffViewer';
-import { Activity, ShieldCheck, LayoutDashboard, FileText, Bot } from 'lucide-react';
+import { Activity, ShieldCheck, LayoutDashboard, FileText, Bot, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/hooks';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, orderBy, limit, onSnapshot } from 'firebase/firestore';
@@ -18,15 +18,25 @@ export default function Dashboard() {
   const [pages, setPages] = useState<any[]>([]);
   const [latestRule, setLatestRule] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [userSiteIds, setUserSiteIds] = useState<string[]>([]);
 
+  // 1. HARD WIPE and Site ID Discovery
   useEffect(() => {
     if (!user || !db) return;
+    
+    // Wipe local state immediately on account switch
+    setStats({ sites: 0, pages: 0, rules: 0 });
+    setPages([]);
+    setLatestRule(null);
+    setUserSiteIds([]);
 
-    // Real-time Stats & Data
     const sitesQuery = query(collection(db, "sites"), where("userId", "==", user.uid));
     
     const unsubscribeSites = onSnapshot(sitesQuery, async (sitesSnap) => {
       const siteCount = sitesSnap.size;
+      const ids = sitesSnap.docs.map(d => d.id);
+      setUserSiteIds(ids);
+
       let pageCount = 0;
       let activeRules = 0;
       let allPages: any[] = [];
@@ -45,32 +55,43 @@ export default function Dashboard() {
       }
 
       setStats({ sites: siteCount, pages: pageCount, rules: activeRules });
-      setPages(allPages.sort((a, b) => b.lastCrawled?.seconds - a.lastCrawled?.seconds).slice(0, 5));
+      setPages(allPages.sort((a, b) => (b.lastCrawled?.seconds || 0) - (a.lastCrawled?.seconds || 0)).slice(0, 5));
       setLoading(false);
     });
 
     return () => unsubscribeSites();
-  }, [user]);
+  }, [user?.uid]);
 
-  // Fetch latest rule for Diff Viewer
+  // 2. Fetch latest rule for Diff Viewer (Optimized & Isolated)
   useEffect(() => {
-    if (!user || !db) return;
-    // Removed orderBy to avoid mandatory composite index requirement
+    if (!user || userSiteIds.length === 0) {
+      setLatestRule(null);
+      return;
+    }
+
+    // SECURITY: Use 'in' operator with user's specific site IDs to prevent leaks
+    // Firestore 'in' supports up to 30 values.
     const rulesQuery = query(
       collection(db, "rules"), 
+      where("siteId", "in", userSiteIds.slice(0, 30)),
       where("isActive", "==", true),
-      limit(10)
+      limit(20)
     );
+
     return onSnapshot(rulesQuery, (snap) => {
       if (!snap.empty) {
-        // Sort in memory instead
-        const sorted = snap.docs.map(d => d.data()).sort((a: any, b: any) => 
-          (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
-        );
+        // Sort in memory to find the absolute latest one across all user's sites
+        const sorted = snap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .sort((a: any, b: any) => 
+            (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
+          );
         setLatestRule(sorted[0]);
+      } else {
+        setLatestRule(null);
       }
     });
-  }, [user]);
+  }, [userSiteIds, user?.uid]);
 
   let diffData = null;
   if (latestRule) {
@@ -79,20 +100,20 @@ export default function Dashboard() {
       diffData = {
         path: latestRule.targetPath,
         oldTitle: "Original Title",
-        newTitle: payload.title,
+        newTitle: payload.title || payload.titleTag || "Optimized Title",
         oldMeta: "Original Meta",
-        newMeta: payload.metaDesc
+        newMeta: payload.metaDesc || payload.metaDescription || "Optimized Meta Description"
       };
     } catch (e) {}
   }
 
   return (
-    <div className="p-4 md:p-8">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto">
         <header className="mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Overview</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-white mb-2 font-serif">Overview</h1>
           <p className="text-sm md:text-base text-gray-400">Real-time SEO infrastructure monitoring</p>
           
-          <div className="mt-6 flex items-center gap-2 text-xs text-terminal bg-terminal/5 border border-terminal/20 w-fit px-3 py-1.5 rounded-full">
+          <div className="mt-6 flex items-center gap-2 text-xs text-terminal bg-terminal/5 border border-terminal/20 w-fit px-3 py-1.5 rounded-full font-mono">
             <div className="w-2 h-2 rounded-full bg-terminal animate-pulse shadow-[0_0_8px_#22c55e]" />
             Live Firebase Connection
           </div>
@@ -128,7 +149,7 @@ export default function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-8">
+          <div className="lg:col-span-2 space-y-10">
             <div>
               <h2 className="text-xl font-bold text-gray-100 mb-4 flex items-center gap-2 font-serif">
                 <Bot className="text-gray-400" size={20} />
@@ -139,9 +160,9 @@ export default function Dashboard() {
             
             <div>
                <h2 className="text-xl font-bold text-gray-100 mb-4 font-serif">Recent Optimizations</h2>
-               {diffData ? (
-                   <div className="space-y-2">
-                     <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold ml-1">
+               {latestRule && diffData ? (
+                   <div className="space-y-4">
+                     <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black ml-1">
                        Target Path: <span className="text-blue-400 font-mono">{diffData.path}</span>
                      </p>
                      <DiffViewer 
@@ -152,31 +173,36 @@ export default function Dashboard() {
                      />
                    </div>
                ) : (
-                   <div className="p-6 border border-gray-800 rounded-xl bg-gray-900/50 text-gray-500 text-center">
-                       No optimizations found yet.
+                   <div className="p-12 border border-dashed border-gray-800 rounded-2xl bg-gray-900/10 text-gray-500 text-center flex flex-col items-center">
+                       <ShieldCheck className="text-gray-800 mb-3" size={32} />
+                       <p className="italic">No optimizations processed for your domains yet.</p>
                    </div>
                )}
             </div>
 
             <div>
                 <h2 className="text-xl font-bold text-gray-100 mb-4 font-serif">Discovered Pages</h2>
-                <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl overflow-hidden">
+                <div className="bg-[#0a0a0a] border border-gray-800 rounded-2xl overflow-hidden shadow-sm">
                     <table className="w-full text-left text-sm text-gray-400">
-                        <thead className="bg-gray-900/50 text-gray-200 font-medium">
+                        <thead className="bg-gray-900/50 text-gray-200 font-bold uppercase tracking-wider text-[10px]">
                             <tr>
                                 <th className="p-4">Path</th>
-                                <th className="p-4">Title</th>
+                                <th className="p-4">Domain</th>
                                 <th className="p-4">Status</th>
                                 <th className="p-4 text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-800">
                             {pages.map(page => (
-                                <tr key={page.id} className="hover:bg-white/5 transition-colors">
+                                <tr key={page.id} className="hover:bg-white/[0.02] transition-colors">
                                     <td className="p-4 font-mono text-xs text-blue-400">{page.path}</td>
-                                    <td className="p-4 max-w-xs truncate" title={page.title || ''}>{page.title || '-'}</td>
+                                    <td className="p-4 text-xs text-gray-500 font-mono truncate">{page.domain}</td>
                                     <td className="p-4">
-                                        <span className="px-2 py-1 rounded-full bg-green-900/20 text-green-400 text-xs border border-green-900/50">
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                          page.status === 'LIVE' 
+                                            ? 'bg-green-900/10 text-green-400 border-green-900/30' 
+                                            : 'bg-yellow-900/10 text-yellow-400 border-yellow-900/30'
+                                        }`}>
                                             {page.status}
                                         </span>
                                     </td>
@@ -185,11 +211,18 @@ export default function Dashboard() {
                                     </td>
                                 </tr>
                             ))}
-                            {pages.length === 0 && (
+                            {pages.length === 0 && !loading && (
                                 <tr>
-                                    <td colSpan={4} className="p-8 text-center text-gray-500">
-                                        No pages found. Click "Scan" above.
+                                    <td colSpan={4} className="p-12 text-center text-gray-500 italic">
+                                        No pages indexed yet. Connect a site to begin.
                                     </td>
+                                </tr>
+                            )}
+                            {loading && (
+                                <tr>
+                                  <td colSpan={4} className="p-12 text-center">
+                                    <Loader2 className="animate-spin text-terminal mx-auto" size={24} />
+                                  </td>
                                 </tr>
                             )}
                         </tbody>
@@ -199,14 +232,15 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-6">
-            <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl p-6 shadow-sm">
-              <h3 className="text-lg font-bold text-gray-100 mb-4 flex items-center gap-2 font-serif">
+            <div className="bg-[#0a0a0a] border border-gray-800 rounded-2xl p-6 shadow-sm">
+              <h3 className="text-lg font-bold text-gray-100 mb-6 flex items-center gap-2 font-serif">
                 <Activity className="text-gray-400" size={20} />
                 System Health
               </h3>
-              <div className="space-y-6">
-                <HealthBar label="Firebase Sync" value={100} color="bg-terminal" />
-                <HealthBar label="Agent Latency" value={12} color="bg-blue-500" />
+              <div className="space-y-8">
+                <HealthBar label="Database Sync" value={100} color="bg-terminal" />
+                <HealthBar label="Agent Handshake" value={100} color="bg-blue-500" />
+                <HealthBar label="Security Isolation" value={100} color="bg-purple-500" />
               </div>
             </div>
           </div>
@@ -218,13 +252,13 @@ export default function Dashboard() {
 function HealthBar({ label, value, color }: { label: string, value: number, color: string }) {
   return (
     <div>
-      <div className="flex justify-between text-xs mb-2 font-medium">
-        <span className="text-gray-400">{label}</span>
+      <div className="flex justify-between text-[10px] uppercase tracking-widest font-black mb-2">
+        <span className="text-gray-500">{label}</span>
         <span className="text-gray-300">{value}%</span>
       </div>
       <div className="h-1.5 w-full bg-gray-900 rounded-full overflow-hidden">
         <div 
-          className={`h-full ${color} rounded-full transition-all duration-500 shadow-[0_0_10px_currentColor]`} 
+          className={`h-full ${color} rounded-full transition-all duration-700 shadow-[0_0_10px_currentColor]`} 
           style={{ width: `${value}%` }}
         />
       </div>

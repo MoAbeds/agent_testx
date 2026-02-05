@@ -2,6 +2,7 @@
 
 import { Terminal, ShieldCheck, Zap } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useAuth } from '@/lib/hooks';
 
 // Define the Event shape matching our API
 interface AgentLog {
@@ -14,12 +15,14 @@ interface AgentLog {
 
 // Build stability verification
 export default function TerminalFeed() {
+  const { user } = useAuth();
   const [feed, setFeed] = useState<AgentLog[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const fetchLogs = async () => {
+    if (!user) return;
     try {
-      const res = await fetch('/api/agent/events');
+      const res = await fetch(`/api/agent/events?userId=${user.uid}`);
       const data = await res.json();
       if (Array.isArray(data)) {
         setFeed(data.reverse()); 
@@ -30,10 +33,12 @@ export default function TerminalFeed() {
   };
 
   useEffect(() => {
-    fetchLogs();
-    const interval = setInterval(fetchLogs, 3000);
-    return () => clearInterval(interval);
-  }, []);
+    if (user) {
+      fetchLogs();
+      const interval = setInterval(fetchLogs, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (scrollRef.current) {

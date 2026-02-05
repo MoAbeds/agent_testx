@@ -9,13 +9,13 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@moabeds/mojo-guardian": "^1.0.0",
-    "autoprefixer": "^10.4.24",
-    "next": "14.1.0",
-    "postcss": "^8.5.6",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "tailwindcss": "^3.4.19"
+    "@moabeds/mojo-guardian": "^1.2.0",
+    "autoprefixer": "^10.4.17",
+    "next": "^14.1.0",
+    "postcss": "^8.4.35",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tailwindcss": "^3.4.1"
   },
   "devDependencies": {
     "@types/node": "^20.19.32",

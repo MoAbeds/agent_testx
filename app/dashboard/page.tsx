@@ -13,6 +13,7 @@ import ScanButton from '@/components/ScanButton';
 import OptimizeButton from '@/components/OptimizeButton';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
 import ReasoningLedger from '@/components/ReasoningLedger';
+import GuardianPulse from '@/components/GuardianPulse';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -240,6 +241,7 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-6">
+            <GuardianPulse />
             <div className="bg-[#0a0a0a] border border-gray-800 rounded-2xl p-6 shadow-sm">
               <h3 className="text-lg font-bold text-gray-100 mb-6 flex items-center gap-2 font-serif">
                 <Activity className="text-gray-400" size={20} />

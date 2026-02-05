@@ -10,8 +10,25 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const { siteId, userId } = await req.json();
+    const { userId, siteId } = await req.json();
     if (!siteId || !userId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+
+    const userRef = doc(db, "users", userId);
+    const userSnap = await getDoc(userRef);
+    const userData = userSnap.data();
+
+    // ⚡ STRATEGIC ENERGY CHECK (Scarcity Loop)
+    const today = new Date().toISOString().split('T')[0];
+    const energyKey = `energy_${today}`;
+    const energyUsed = userData?.energyUsed?.[siteId] || 0;
+    const maxEnergy = 3; // 3 optimizations per day per site
+
+    if (energyUsed >= maxEnergy) {
+      return NextResponse.json({ 
+        error: 'Strategic Energy Depleted', 
+        message: 'Mojo Brain has exhausted its high-intensity strategic energy for this site today. Energy resets in 24 hours.' 
+      }, { status: 429 });
+    }
 
     const siteRef = doc(db, "sites", siteId);
     const siteSnap = await getDoc(siteRef);
@@ -82,6 +99,12 @@ export async function POST(req: NextRequest) {
         ruleId: docRef.id
       });
     }
+
+    // UPDATE ENERGY CONSUMPTION
+    await updateDoc(userRef, {
+      [`energyUsed.${siteId}`]: (userData?.energyUsed?.[siteId] || 0) + 1,
+      lastEnergyUpdate: today
+    });
 
     return NextResponse.json({ success: true, actionsDeployed: createdRules.length, rules: createdRules });
 

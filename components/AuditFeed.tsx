@@ -18,11 +18,15 @@ export default function AuditFeed({ initialEvents, siteId }: { initialEvents: Ev
   const [events, setEvents] = useState<Event[]>([]);
   const [undoing, setUndoing] = useState<string | null>(null);
 
-  // Sync state when props change
+  // 🔒 CRITICAL: Reset state when siteId changes to prevent ghosting
   useEffect(() => {
-    // 🔒 THE ULTIMATE GUARD: Never allow data into state if it doesn't match the current siteId
-    // This stops "ghost" data from appearing during transitions.
+    setEvents([]);
+  }, [siteId]);
+
+  // Sync state when props change - with hard siteId filter
+  useEffect(() => {
     if (initialEvents && initialEvents.length > 0 && siteId) {
+      // 🔒 THE ULTIMATE GUARD: Never allow data into state if it doesn't match the current siteId
       const filtered = initialEvents.filter(e => e.siteId === siteId);
       setEvents(filtered);
     } else {

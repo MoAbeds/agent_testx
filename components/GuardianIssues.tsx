@@ -10,6 +10,7 @@ interface Issue {
   type: string;
   path: string;
   details: string | null;
+  siteId?: string;
 }
 
 export default function GuardianIssues({ initialIssues, siteId }: { initialIssues: Issue[], siteId: string }) {
@@ -25,13 +26,26 @@ export default function GuardianIssues({ initialIssues, siteId }: { initialIssue
   const [reporting, setReporting] = useState(false);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-  function issuesFilter(items: any[]) {
-     return items.filter(i => ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(i.type));
+  function issuesFilter(items: any[], currentSiteId: string) {
+     return items.filter(i => 
+       ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(i.type) &&
+       i.siteId === currentSiteId // 🔒 HARD FILTER: Only show issues for THIS site
+     );
   }
 
+  // 🔒 CRITICAL: Reset state when siteId changes to prevent ghosting
   useEffect(() => {
-    setIssues(issuesFilter(initialIssues));
-  }, [initialIssues]);
+    setIssues([]);
+  }, [siteId]);
+
+  // Sync filtered issues from parent
+  useEffect(() => {
+    if (siteId && initialIssues) {
+      setIssues(issuesFilter(initialIssues, siteId));
+    } else {
+      setIssues([]);
+    }
+  }, [initialIssues, siteId]);
 
   // STRICT PLAN CHECK
   const isFreePlan = !user?.plan || user.plan === 'FREE';

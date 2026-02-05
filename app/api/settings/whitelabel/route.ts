@@ -1,24 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from "@/lib/firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc } from "firebase/firestore";
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const { siteId, agencyName, customLogo, footerText } = await req.json();
-    if (!siteId) return NextResponse.json({ error: 'siteId required' }, { status: 400 });
+    const { userId, logoUrl, agencyName, primaryColor } = await req.json();
 
-    const siteRef = doc(db, "sites", siteId);
-    await updateDoc(siteRef, {
+    if (!userId) {
+      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    }
+
+    const userRef = doc(db, "users", userId);
+    await updateDoc(userRef, {
       whitelabel: {
+        logoUrl,
         agencyName,
-        customLogo,
-        footerText,
-        updatedAt: new Date().toISOString()
-      }
+        primaryColor
+      },
+      updatedAt: new Date().toISOString()
     });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Whitelabel Update Error:', error);
+    return NextResponse.json({ error: 'Failed to update settings' }, { status: 500 });
   }
 }

@@ -3,8 +3,9 @@
 import { auth } from '@/lib/firebase';
 import { useAuth } from '@/lib/hooks';
 import { signOut } from 'firebase/auth';
-import { User, CreditCard, Mail, Shield, LogOut } from 'lucide-react';
+import { User, CreditCard, Mail, Shield, LogOut, Palette } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import WhitelabelSettings from '@/components/WhitelabelSettings';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -57,6 +58,11 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+
+        {/* Agency Whitelabeling */}
+        {user?.plan === 'AGENCY' && (
+          <WhitelabelSettings user={user} />
+        )}
 
         {/* Subscription Plan */}
         <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl overflow-hidden">

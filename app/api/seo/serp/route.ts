@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, serverTimestamp, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,10 +51,35 @@ export async function POST(request: NextRequest) {
       };
     });
 
+    // 📈 LOG RANK HISTORY
+    // We only log if a scan was performed successfully. 
+    // Position 0 or -1 means not in top 100.
+    await addDoc(collection(db, "rank_history"), {
+      siteId,
+      keyword,
+      position: position > 0 ? position : 101, // 101 represents "off the charts"
+      timestamp: serverTimestamp()
+    });
+
+    // Fetch last 10 historical points for the chart
+    const historyQ = query(
+      collection(db, "rank_history"),
+      where("siteId", "==", siteId),
+      where("keyword", "==", keyword),
+      orderBy("timestamp", "desc"),
+      limit(10)
+    );
+    const historySnap = await getDocs(historyQ);
+    const history = historySnap.docs.map(d => ({
+      position: d.data().position,
+      date: d.data().timestamp?.toDate?.()?.toLocaleDateString() || 'Just now'
+    })).reverse();
+
     return NextResponse.json({
       success: true,
       keyword,
       position,
+      history,
       results: results.slice(0, 50), // Show top 50
       metadata: {
         totalResults: response.data.searchParameters?.totalResults || 0,

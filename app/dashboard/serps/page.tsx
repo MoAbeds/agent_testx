@@ -7,6 +7,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Search, Globe, Trophy, ExternalLink, Loader2, Target, BarChart3, AlertCircle } from 'lucide-react';
 import SiteManager from '@/components/SiteManager';
+import RankChart from '@/components/RankChart';
 
 interface SiteData {
   id: string;
@@ -23,6 +24,7 @@ function SerpsContent() {
   const [site, setSite] = useState<SiteData | null>(null);
   const [keyword, setKeyword] = useState('');
   const [results, setResults] = useState<any[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
   const [myPosition, setMyPosition] = useState<number>(-1);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -67,6 +69,8 @@ function SerpsContent() {
     if (!site?.id || !targetKeyword.trim()) return;
 
     setLoading(true);
+    setResults([]);
+    setHistory([]);
     if (typeof kw === 'string') setKeyword(kw);
 
     try {
@@ -79,6 +83,7 @@ function SerpsContent() {
       if (data.success) {
         setResults(data.results || []);
         setMyPosition(data.position);
+        setHistory(data.history || []);
       } else {
         setResults([]);
         setMyPosition(-1);
@@ -99,7 +104,7 @@ function SerpsContent() {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2 font-serif">SERP Tracker</h1>
-          <p className="text-gray-400">Analyze real-time Google search results and your positioning.</p>
+          <p className="text-gray-400 text-sm md:text-base">Monitor real-time Google rankings and historical growth.</p>
         </div>
         <SiteManager sites={allSites} currentSiteId={site?.id || ''} />
       </header>
@@ -161,6 +166,10 @@ function SerpsContent() {
 
           {results.length > 0 && (
             <div className="space-y-8 animate-in fade-in duration-500">
+              
+              {/* Ranking Chart */}
+              <RankChart history={history} />
+
               {/* Summary Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-[#0a0a0a] border border-gray-800 rounded-2xl p-6">

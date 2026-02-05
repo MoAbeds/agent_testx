@@ -61,8 +61,10 @@ export function Sidebar() {
         lg:translate-x-0 lg:static lg:h-full
       `}>
         <div className="p-6 border-b border-gray-800 hidden lg:flex items-center gap-3">
-          <img src="/logo.svg" alt="Mojo" className="w-8 h-8" />
-          <span className="font-bold text-xl tracking-tight text-white">Mojo <span className="text-terminal">Guardian</span></span>
+          <img src={user?.whitelabel?.logoUrl || "/logo.svg"} alt="Mojo" className="w-8 h-8 rounded" />
+          <span className="font-bold text-xl tracking-tight text-white truncate">
+            {user?.whitelabel?.agencyName || <>Mojo <span className="text-terminal">Guardian</span></>}
+          </span>
         </div>
         
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">

@@ -28,6 +28,14 @@ export async function updateUserPlan(userId: string, plan: string, subscriptionI
   }, { merge: true });
 }
 
+export async function updateWhitelabelSettings(userId: string, settings: { logoUrl: string, agencyName: string, primaryColor: string }) {
+  const userRef = doc(db, "users", userId);
+  await setDoc(userRef, {
+    whitelabel: settings,
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+}
+
 export async function getUserPlan(userId: string) {
   const userRef = doc(db, "users", userId);
   const snap = await getDoc(userRef);

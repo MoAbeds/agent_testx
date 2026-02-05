@@ -112,11 +112,6 @@ export default function Dashboard() {
         <header className="mb-8">
           <h1 className="text-2xl md:text-3xl font-bold text-white mb-2 font-serif">Overview</h1>
           <p className="text-sm md:text-base text-gray-400">Real-time SEO infrastructure monitoring</p>
-          
-          <div className="mt-6 flex items-center gap-2 text-xs text-terminal bg-terminal/5 border border-terminal/20 w-fit px-3 py-1.5 rounded-full font-mono">
-            <div className="w-2 h-2 rounded-full bg-terminal animate-pulse shadow-[0_0_8px_#22c55e]" />
-            Live Firebase Connection
-          </div>
         </header>
 
         {/* Stats Grid */}

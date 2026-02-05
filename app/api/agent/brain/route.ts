@@ -28,11 +28,16 @@ export async function POST(req: NextRequest) {
     const deepDive = siteData.industryDeepDive ? JSON.parse(siteData.industryDeepDive) : null;
     const targetKeywords = siteData.targetKeywords ? JSON.parse(siteData.targetKeywords) : null;
 
+    // Fetch existing rules to provide context to the brain
+    const existingRulesSnap = await getDocs(query(collection(db, "rules"), where("siteId", "==", siteId), where("isActive", "==", true)));
+    const existingRules = existingRulesSnap.docs.map(d => d.data());
+
     // 2. ACTIVATE ELITE STRATEGIST BRAIN
     const model = genAI.getGenerativeModel({ 
       model: 'gemini-3-flash-preview',
       systemInstruction: `You are the Mojo Elite SEO Strategist. Your SOLE mission is to rank the website "${siteData.domain}" to Page 1 of Google. 
-      You use First-Principles Thinking and Second-Order Thinking. You don't just fix tags; you architect authority.`
+      You use First-Principles Thinking and Second-Order Thinking. You don't just fix tags; you architect authority. 
+      IMPORTANT: This is an iterative optimization process. Look at existing rules and pages, and find NEW ways to improve or refine them. Never repeat the exact same optimization if it hasn't improved rankings.`
     });
 
     const contextPrompt = `
@@ -40,6 +45,7 @@ export async function POST(req: NextRequest) {
       INDUSTRY INTEL: ${JSON.stringify(deepDive?.processedIntel || "Not analyzed yet")}
       TOP KEYWORDS: ${JSON.stringify(targetKeywords?.detailed?.slice(0, 10) || "Not researched yet")}
       CURRENT PAGES: ${pages.length} pages found.
+      EXISTING ACTIVE RULES: ${JSON.stringify(existingRules.map((r: any) => ({ path: r.targetPath, payload: r.payload })))}
       
       TASK:
       Analyze the current status and generate the next 3 HIGH-IMPACT SEO actions.

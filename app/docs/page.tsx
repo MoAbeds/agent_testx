@@ -95,10 +95,23 @@ export default function DocsPage() {
               <p className="text-gray-400">
                 The Agent is a lightweight bridge that connects Mojo Guardian to your site. It intercepts requests before they hit your server to inject optimized metadata and fix broken links in real-time.
               </p>
-              <ul className="list-disc pl-6 space-y-2 text-gray-400 text-sm">
-                <li><strong>WordPress:</strong> Install via .zip file from the "Deploy Agent" page.</li>
-                <li><strong>Next.js:</strong> Import our universal JS library into your Root Layout.</li>
-              </ul>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-blue-900/10 border border-blue-500/20 rounded-xl">
+                  <h4 className="text-blue-400 font-bold mb-2 flex items-center gap-2">
+                    <Zap size={14} /> WordPress
+                  </h4>
+                  <p className="text-[11px] text-gray-500 mb-3">Install our native plugin for zero-code SEO automation.</p>
+                  <a href="/dashboard/install" className="text-[10px] font-black uppercase text-blue-400 hover:underline">Download Plugin →</a>
+                </div>
+                <div className="p-4 bg-terminal/5 border border-terminal/20 rounded-xl">
+                  <h4 className="text-terminal font-bold mb-2 flex items-center gap-2">
+                    <Code size={14} /> Next.js / Node
+                  </h4>
+                  <p className="text-[11px] text-gray-500 mb-3">Deploy via NPM for full control over your SSR metadata.</p>
+                  <code className="text-[10px] bg-black px-2 py-1 rounded text-terminal border border-terminal/20 block mb-3">npm install @moabeds/mojo-guardian</code>
+                  <a href="#agent-sdk" className="text-[10px] font-black uppercase text-terminal hover:underline">View NPM Docs →</a>
+                </div>
+              </div>
             </section>
 
           </div>

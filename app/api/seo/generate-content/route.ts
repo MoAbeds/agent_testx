@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from "@/lib/firebase";
-import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, increment } from "firebase/firestore";
+import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, increment, query, where, limit, getDocs } from "firebase/firestore";
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { logEvent } from '@/lib/db';
 
@@ -52,10 +52,12 @@ Final response must be JSON: { "html": "...", "title": "...", "metaDesc": "...",
     const rawText = result.response.text().replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
     const article = JSON.parse(rawText);
 
+    const targetPath = suggestedPath || `/${topic.toLowerCase().replace(/\s+/g, '-')}`;
+
     // Deploy as an Autonomous Rule (Inject HTML)
     const ruleRef = await addDoc(collection(db, "rules"), {
       siteId,
-      targetPath: suggestedPath || `/${topic.toLowerCase().replace(/\s+/g, '-')}`,
+      targetPath,
       type: 'INJECT_HTML',
       payload: JSON.stringify({
         html: article.html,
@@ -79,7 +81,46 @@ Final response must be JSON: { "html": "...", "title": "...", "metaDesc": "...",
       ruleId: ruleRef.id
     });
 
-    return NextResponse.json({ success: true, ruleId: ruleRef.id, slug: suggestedPath });
+    // 🔄 PHASE 6: AUTHORITY FLYWHEEL (Autonomous Internal Linking)
+    try {
+      // Find 3 high-authority pages to link FROM
+      const pagesQ = query(
+        collection(db, "pages"),
+        where("siteId", "==", siteId),
+        limit(10)
+      );
+      const pagesSnap = await getDocs(pagesQ);
+      const existingPages = pagesSnap.docs
+        .map(d => d.data())
+        .filter(p => p.path !== targetPath && p.path !== '/')
+        .slice(0, 3);
+
+      for (const sourcePage of existingPages) {
+        // Create an INJECT_LINK rule
+        await addDoc(collection(db, "rules"), {
+          siteId,
+          targetPath: sourcePage.path,
+          type: 'INJECT_LINK',
+          payload: JSON.stringify({
+            href: targetPath,
+            anchorText: targetKeyword || topic,
+            reasoning: `Internal link flywheel: Strengthening authority for new page '${article.title}' from source '${sourcePage.path}'.`
+          }),
+          isActive: true,
+          confidence: 0.95,
+          createdAt: serverTimestamp()
+        });
+
+        await logEvent(siteId, 'FLYWHEEL_LINK', sourcePage.path, {
+          message: `Mojo deployed autonomous internal link from ${sourcePage.path} to ${targetPath}`,
+          target: targetPath
+        });
+      }
+    } catch (flywheelError) {
+      console.error("Authority Flywheel Error:", flywheelError);
+    }
+
+    return NextResponse.json({ success: true, ruleId: ruleRef.id, slug: targetPath });
 
   } catch (error: any) {
     console.error("Ghost-Writer Error:", error);

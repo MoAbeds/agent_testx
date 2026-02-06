@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from "@/lib/firebase";
-import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp, updateDoc } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp, updateDoc, orderBy, limit } from "firebase/firestore";
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { logEvent } from '@/lib/db';
 
@@ -36,6 +36,20 @@ export async function POST(req: NextRequest) {
 
     if (siteData.userId !== userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
 
+    // 📈 RANKING VELOCITY ANALYSIS (SDC Innovation Trigger)
+    const rankHistorySnap = await getDocs(query(
+      collection(db, "rank_history"), 
+      where("siteId", "==", siteId), 
+      orderBy("timestamp", "desc"), 
+      limit(3)
+    ));
+    const history = rankHistorySnap.docs.map(d => d.data());
+    
+    // Innovation Trigger: If rank hasn't moved in last 3 scans, allow "High Curvature" (radical) moves.
+    const isVelocityFlat = history.length >= 3 && 
+      history[0].averageRank === history[1].averageRank && 
+      history[1].averageRank === history[2].averageRank;
+
     const pagesSnap = await getDocs(query(collection(db, "pages"), where("siteId", "==", siteId)));
     const pages = pagesSnap.docs.map(d => d.data());
 
@@ -50,7 +64,12 @@ export async function POST(req: NextRequest) {
     const model = genAI.getGenerativeModel({ 
       model: 'gemini-3-flash-preview',
       systemInstruction: `You are the Mojo Elite SEO Strategist. ${isDefense ? 'CRITICAL: SITE IS UNDER ALGORITHM ATTACK. PROPOSE DEFENSE RULES.' : 'Your SOLE mission is to rank the website to Page 1.'}
-      You use First-Principles Thinking. IMPORTANT: You must provide a "reasoning" string for each rule.`
+      
+      STABILITY & INNOVATION CONTROLLER (SDC-Inspired):
+      - Innovation Mode: ${isVelocityFlat ? 'ENABLED (Ranking is flat. High-Curvature radical moves allowed.)' : 'STABLE (Ranking is moving. Stay within conservative optimization boundaries.)'}
+      
+      You use First-Principles Thinking. 
+      IMPORTANT: You must provide a "reasoning" string for each rule and a "divergence_score" (0.0-1.0) indicating how radical the change is.`
     });
 
     const contextPrompt = `
@@ -64,7 +83,13 @@ export async function POST(req: NextRequest) {
     `;
 
     const result = await model.generateContent(contextPrompt);
-    const rulesToCreate = JSON.parse(result.response.text().replace(/```json|```/g, '').trim());
+    let rulesToCreate = JSON.parse(result.response.text().replace(/```json|```/g, '').trim());
+
+    // 🛡️ SPECTRAL DIVERGENCE FILTER
+    if (!isVelocityFlat) {
+      // Filter out rules with divergence > 0.7 if we are in STABLE mode
+      rulesToCreate = rulesToCreate.filter((r: any) => (r.divergence_score || 0) <= 0.7);
+    }
 
     const createdRules = [];
     for (const rule of rulesToCreate) {
@@ -77,6 +102,7 @@ export async function POST(req: NextRequest) {
         reasoning: rule.reasoning || payload.reasoning || "Strategic authority optimization",
         isActive: true,
         confidence: rule.confidence || payload.confidence || 0.9,
+        divergenceScore: rule.divergence_score || 0,
         createdAt: serverTimestamp()
       };
       const docRef = await addDoc(collection(db, "rules"), newRule);
@@ -85,11 +111,12 @@ export async function POST(req: NextRequest) {
       await logEvent(siteId, isDefense ? 'DEFENSE_DEPLOYED' : 'AI_STRATEGIC_FIX', rule.targetPath, { 
         message: isDefense ? `[DEFENSE] ${newRule.reasoning}` : `Mojo Brain deployed ranking optimization: ${newRule.reasoning}`,
         reasoning: newRule.reasoning,
-        ruleId: docRef.id
+        ruleId: docRef.id,
+        divergence: newRule.divergenceScore
       });
     }
 
-    if (!isDefense) {
+    if (!isDefense && createdRules.length > 0) {
       await updateDoc(userRef, {
         [`energyUsed.${siteId}`]: (userData?.energyUsed?.[siteId] || 0) + 1,
         lastEnergyUpdate: today

@@ -13,7 +13,11 @@ service cloud.firestore {
       allow read: if request.auth != null && 
         get(/databases/$(database)/documents/sites/$(resource.data.siteId)).data.userId == request.auth.uid;
       
-      allow create: if true; 
+      // 🔒 SECURITY FIX: Only allow creation if the siteId belongs to the requester
+      // or if it's coming from an authorized server-side handshake (which we handle via Admin SDK)
+      allow create: if request.auth != null && 
+        get(/databases/$(database)/documents/sites/$(request.resource.data.siteId)).data.userId == request.auth.uid;
+        
       allow update, delete: if request.auth != null && 
         get(/databases/$(database)/documents/sites/$(resource.data.siteId)).data.userId == request.auth.uid;
     }

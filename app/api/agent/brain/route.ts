@@ -36,6 +36,13 @@ export async function POST(req: NextRequest) {
 
     if (siteData.userId !== userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
 
+    // 🔒 SECURITY HARDENING: Ownership cross-check
+    // In production, we should verify the Firebase ID Token here.
+    // For now, we strictly enforce that the siteId and userId relationship is valid.
+    if (!userData || siteData.userId !== userSnap.id) {
+       return NextResponse.json({ error: 'Security Mismatch', message: 'User/Site relationship is invalid.' }, { status: 403 });
+    }
+
     // 📈 RANKING VELOCITY ANALYSIS (SDC Innovation Trigger)
     const rankHistorySnap = await getDocs(query(
       collection(db, "rank_history"), 

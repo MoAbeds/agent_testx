@@ -34,11 +34,12 @@ export async function POST(req: NextRequest) {
       impressions: 45800,
       ctr: 2.7,
       position: 14.2,
-      estimatedRoi: 4250, // New: Dollar value of traffic
+      estimatedRoi: 4250,
+      moatIndex: 68, // New: 0-100 score of ranking defensibility
       topKeywords: [
-        { query: "autonomous seo agent", clicks: 120, impressions: 5000, position: 4.2, status: 'STRIKE_ZONE' },
-        { query: "how to fix 404 with ai", clicks: 85, impressions: 3200, position: 8.1, status: 'OPPORTUNITY' },
-        { query: "mojo guardian seo", clicks: 210, impressions: 1200, position: 1.1, status: 'RANKED' }
+        { query: "autonomous seo agent", clicks: 120, impressions: 5000, position: 4.2, status: 'STRIKE_ZONE', moat: 82 },
+        { query: "how to fix 404 with ai", clicks: 85, impressions: 3200, position: 8.1, status: 'OPPORTUNITY', moat: 45 },
+        { query: "mojo guardian seo", clicks: 210, impressions: 1200, position: 1.1, status: 'RANKED', moat: 95 }
       ],
       syncedAt: new Date().toISOString()
     };

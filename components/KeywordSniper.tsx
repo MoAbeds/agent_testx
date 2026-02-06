@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/hooks';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { Target, TrendingUp, DollarSign, Loader2, Sparkles, Zap } from 'lucide-react';
+import { Target, TrendingUp, DollarSign, Loader2, Sparkles, Zap, Shield } from 'lucide-react';
 
 export default function KeywordSniper({ siteId }: { siteId: string }) {
   const { user } = useAuth();
@@ -63,8 +63,8 @@ export default function KeywordSniper({ siteId }: { siteId: string }) {
           <p className="text-xs text-gray-500 mt-1 uppercase tracking-widest font-black">Low Hanging Fruit Keywords (#4 - #12)</p>
         </div>
         <div className="bg-terminal/10 px-3 py-1.5 rounded-full border border-terminal/20 flex items-center gap-2">
-          <DollarSign size={14} className="text-terminal" />
-          <span className="text-sm font-black text-white font-mono">${gscData.estimatedRoi?.toLocaleString() || '0'} EST. ROI</span>
+          <Shield size={14} className="text-terminal" />
+          <span className="text-sm font-black text-white font-mono">{gscData.moatIndex || '0'} MOAT INDEX</span>
         </div>
       </div>
 
@@ -87,7 +87,7 @@ export default function KeywordSniper({ siteId }: { siteId: string }) {
                       <TrendingUp size={10} /> {kw.clicks} Clicks
                     </span>
                     <span className="text-[10px] text-gray-500 flex items-center gap-1">
-                      <TrendingUp size={10} /> {kw.impressions} Views
+                      <Shield size={10} className="text-purple-400" /> Moat: {kw.moat}%
                     </span>
                   </div>
                 </div>

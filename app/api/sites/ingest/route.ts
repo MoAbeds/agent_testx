@@ -16,13 +16,13 @@ export async function POST(request: NextRequest) {
     
     const apiKey = authHeader?.replace('Bearer ', '') || customHeader || urlKey;
 
-    if (!apiKey) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!apiKey) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
     // 1. Verify Site by API Key
     const sitesRef = collection(db, "sites");
     const qSite = query(sitesRef, where("apiKey", "==", apiKey));
     const siteSnap = await getDocs(qSite);
-    if (siteSnap.empty) return NextResponse.json({ error: 'Invalid API Key' }, { status: 403 });
+    if (siteSnap.empty) return NextResponse.json({ success: false, error: 'Invalid API Key' }, { status: 403 });
     const site = { id: siteSnap.docs[0].id, ...siteSnap.docs[0].data() };
 
 

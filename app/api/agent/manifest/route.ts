@@ -12,13 +12,13 @@ export async function GET(request: NextRequest) {
   let apiKey = authHeader?.replace('Bearer ', '') || customHeader || urlKey;
 
   if (!apiKey) {
-    return NextResponse.json({ error: 'Missing API Key' }, { status: 401 });
+    return NextResponse.json({ success: false, error: 'Missing API Key' }, { status: 401 });
   }
 
   const site = await getSiteByApiKey(apiKey);
 
   if (!site) {
-    return NextResponse.json({ error: 'Invalid API Key' }, { status: 403 });
+    return NextResponse.json({ success: false, error: 'Invalid API Key' }, { status: 403 });
   }
 
   // Log heartbeat to show agent is "Live" in Dashboard

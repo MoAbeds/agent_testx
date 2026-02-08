@@ -36,24 +36,30 @@ export async function POST(request: NextRequest) {
       const normalizedPath = targetPath.startsWith('/') ? targetPath : `/${targetPath}`;
       const pathVariants = [targetPath, normalizedPath, normalizedPath.substring(1)]; // Try "/path", "path", and whatever is in DB
 
+      console.log(`[Auto-Cleanup] Attempting to remove issues for: ${targetPath}`);
+      console.log(`[Auto-Cleanup] Variants: ${JSON.stringify(pathVariants)}`);
+
       // Execute deletion for all variants
       const eventsRef = collection(db, "events");
       const issueQuery = query(
         eventsRef, 
-        where("siteId", "==", siteId),
-        where("type", "==", "SEO_GAP")
+        where("siteId", "==", siteId)
+        // Removed type filter to catch ALL issue types for this path
       );
       
       const issueSnap = await getDocs(issueQuery);
       
+      let deletedCount = 0;
       // Filter manually for path match to handle slash discrepancies
-      issueSnap.docs.forEach(async (docSnap) => {
+      for (const docSnap of issueSnap.docs) {
         const issuePath = docSnap.data().path;
         if (pathVariants.includes(issuePath)) {
-          console.log(`[Auto-Cleanup] Deleting resolved issue ${docSnap.id} for path ${issuePath}`);
+          console.log(`[Auto-Cleanup] MATCH FOUND: Deleting resolved issue ${docSnap.id} (Type: ${docSnap.data().type}) for path ${issuePath}`);
           await deleteDoc(doc(db, "events", docSnap.id));
+          deletedCount++;
         }
-      });
+      }
+      console.log(`[Auto-Cleanup] Total deleted: ${deletedCount}`);
     }
 
     // Log the event

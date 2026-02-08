@@ -148,11 +148,11 @@ function InstallContent() {
               Our WordPress bridge handles server-side redirects before your page even loads for maximum speed.
             </p>
             <a 
-              href="https://github.com/MoAbeds/agent_testx/raw/main/mojo-guardian-v1.1.2.zip"
-              download
+              href="/mojo-guardian.zip"
+              download="mojo-guardian-v1.1.3.zip"
               className="mt-6 inline-block w-full text-center py-2 rounded-lg bg-terminal text-black text-xs font-bold hover:bg-green-400 transition-all"
             >
-              Download mojo-guardian-v1.1.2.zip
+              Download Plugin (v1.1.3)
             </a>
           </div>
 

@@ -34,11 +34,10 @@ export default function OptimizeButton({ pageId }: OptimizeButtonProps) {
 
       setStatus('success');
       
-      // Show success briefly then redirect to rules page
+      // Wait briefly, then redirect (No browser popup)
       setTimeout(() => {
-        alert('✨ Optimization Drafted! Redirecting to Rules page to review and approve...');
         router.push('/dashboard/rules');
-      }, 500);
+      }, 800);
     } catch (error) {
       setStatus('error');
       setErrorMessage(error instanceof Error ? error.message : 'Optimization failed');

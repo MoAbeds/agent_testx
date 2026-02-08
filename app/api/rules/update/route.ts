@@ -30,6 +30,20 @@ export async function POST(request: NextRequest) {
     // Update status
     await updateDoc(ruleRef, { isActive: !!isActive });
 
+    // 🔒 AUTO-CLEANUP: If rule is approved (isActive=true), REMOVE the corresponding "SEO_GAP" issue
+    if (isActive) {
+      const issueQuery = query(
+        collection(db, "events"), 
+        where("siteId", "==", siteId),
+        where("path", "==", ruleSnap.data().targetPath),
+        where("type", "==", "SEO_GAP")
+      );
+      const issueSnap = await getDocs(issueQuery);
+      issueSnap.forEach(async (docSnap) => {
+        await deleteDoc(doc(db, "events", docSnap.id));
+      });
+    }
+
     // Log the event
     const actionType = isActive ? 'RULE_APPROVED' : 'RULE_DEACTIVATED';
     await logEvent(siteId, actionType, ruleSnap.data().targetPath, { 

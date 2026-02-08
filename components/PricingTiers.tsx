@@ -39,9 +39,28 @@ export default function PricingTiers() {
 
   const currentPlanId = user?.plan === 'STARTER' ? 'P-99994686LA118961JNGEF6HI' : user?.plan === 'PRO' ? 'P-4Y254548975256844NGEF6LQ' : user?.plan === 'AGENCY' ? 'P-8WD16174CP897103PNGEF6QA' : null;
 
-  const handleSuccess = (data: any) => {
-    alert(`Subscription successful! Your account is being upgraded.`);
-    window.location.href = '/dashboard';
+  const handleSuccess = async (data: any) => {
+    try {
+      // 1. Verify and Upgrade via API
+      const res = await fetch('/api/billing/create-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          planId: data.subscriptionID, // PayPal Subscription ID
+          tier: selectedPlan.tier === 'Starter' ? 'STARTER' : selectedPlan.tier === 'Professional' ? 'PRO' : 'AGENCY',
+          userId: user.uid
+        })
+      });
+
+      if (!res.ok) throw new Error('Failed to upgrade account');
+
+      // 2. Success Feedback
+      alert(`Subscription successful! Welcome to ${selectedPlan.tier}.`);
+      window.location.href = '/dashboard';
+    } catch (error) {
+      console.error(error);
+      alert('Payment succeeded, but upgrade failed. Please contact support.');
+    }
   };
 
   const handleError = (err: any) => {

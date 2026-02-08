@@ -37,7 +37,7 @@ export default function PricingTiers() {
   const { user } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
 
-  const currentPlanId = user?.plan === 'STARTER' ? 'P-STARTER' : user?.plan === 'PRO' ? 'P-PRO' : user?.plan === 'AGENCY' ? 'P-AGENCY' : null;
+  const currentPlanId = user?.plan === 'STARTER' ? 'P-6W306860WX685352DNGEEKIA' : user?.plan === 'PRO' ? 'P-1JK32597NW6740601NGEEKOA' : user?.plan === 'AGENCY' ? 'P-50L42564753010424NGEEKVI' : null;
 
   const handleSuccess = (data: any) => {
     alert(`Subscription successful! Your account is being upgraded.`);

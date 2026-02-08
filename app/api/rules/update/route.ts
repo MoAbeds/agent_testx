@@ -32,15 +32,27 @@ export async function POST(request: NextRequest) {
 
     // 🔒 AUTO-CLEANUP: If rule is approved (isActive=true), REMOVE the corresponding "SEO_GAP" issue
     if (isActive) {
+      const targetPath = ruleSnap.data().targetPath;
+      const normalizedPath = targetPath.startsWith('/') ? targetPath : `/${targetPath}`;
+      const pathVariants = [targetPath, normalizedPath, normalizedPath.substring(1)]; // Try "/path", "path", and whatever is in DB
+
+      // Execute deletion for all variants
+      const eventsRef = collection(db, "events");
       const issueQuery = query(
-        collection(db, "events"), 
+        eventsRef, 
         where("siteId", "==", siteId),
-        where("path", "==", ruleSnap.data().targetPath),
         where("type", "==", "SEO_GAP")
       );
+      
       const issueSnap = await getDocs(issueQuery);
-      issueSnap.forEach(async (docSnap) => {
-        await deleteDoc(doc(db, "events", docSnap.id));
+      
+      // Filter manually for path match to handle slash discrepancies
+      issueSnap.docs.forEach(async (docSnap) => {
+        const issuePath = docSnap.data().path;
+        if (pathVariants.includes(issuePath)) {
+          console.log(`[Auto-Cleanup] Deleting resolved issue ${docSnap.id} for path ${issuePath}`);
+          await deleteDoc(doc(db, "events", docSnap.id));
+        }
       });
     }
 

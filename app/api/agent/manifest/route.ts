@@ -4,8 +4,12 @@ import { getSiteByApiKey, getActiveRules, logEvent } from '@/lib/db';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  // Support Authorization header, X-Api-Key header, or ?key= query param
   const authHeader = request.headers.get('Authorization');
-  const apiKey = authHeader?.replace('Bearer ', '');
+  const customHeader = request.headers.get('X-Api-Key');
+  const urlKey = request.nextUrl.searchParams.get('key');
+
+  let apiKey = authHeader?.replace('Bearer ', '') || customHeader || urlKey;
 
   if (!apiKey) {
     return NextResponse.json({ error: 'Missing API Key' }, { status: 401 });

@@ -8,8 +8,13 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const { domain, pages } = await request.json();
+    
+    // Support multiple auth methods (WP hosts often strip Authorization header)
     const authHeader = request.headers.get('Authorization');
-    const apiKey = authHeader?.replace('Bearer ', '');
+    const customHeader = request.headers.get('X-Api-Key');
+    const urlKey = request.nextUrl.searchParams.get('key');
+    
+    const apiKey = authHeader?.replace('Bearer ', '') || customHeader || urlKey;
 
     if (!apiKey) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

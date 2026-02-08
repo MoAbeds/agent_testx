@@ -21,7 +21,8 @@ export default function PayPalButton({ planId, userId, onSuccess, onError }: Pay
         paypal = await loadScript({ 
           clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "",
           vault: "true",
-          intent: "subscription"
+          intent: "subscription",
+          currency: "USD"
         });
 
         if (paypal && buttonRef.current) {

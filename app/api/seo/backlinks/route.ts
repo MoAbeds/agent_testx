@@ -25,11 +25,15 @@ export async function POST(req: NextRequest) {
     const auth = Buffer.from(`${dfseoLogin}:${dfseoPassword}`).toString('base64');
     const domain = siteData.domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
+    console.log(`[Backlink Scout] Target Domain: ${domain}`);
+
     // 1. Fetch Backlink Summary from DataForSEO
     const response = await axios.post('https://api.dataforseo.com/v3/backlinks/summary/live', 
       [{ target: domain, internal_list_limit: 10 }],
       { headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'application/json' } }
     );
+
+    console.log(`[Backlink Scout] API Response:`, JSON.stringify(response.data));
 
     const result = response.data?.tasks?.[0]?.result?.[0];
     

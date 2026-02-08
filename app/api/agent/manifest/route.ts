@@ -44,6 +44,8 @@ export async function GET(request: NextRequest) {
   });
 
   return NextResponse.json({
+    success: true,
+    status: 'connected',
     meta: {
       generatedAt: new Date().toISOString(),
       siteId: site.id,

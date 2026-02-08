@@ -7,7 +7,7 @@ import PayPalButton from './PayPalButton';
 
 const PLANS = [
   {
-    id: 'P-6W306860WX685352DNGEEKIA',
+    id: 'P-99994686LA118961JNGEF6HI',
     tier: 'Starter',
     price: '$39',
     description: 'Perfect for small business owners and niche blogs.',
@@ -15,7 +15,7 @@ const PLANS = [
     icon: Zap,
   },
   {
-    id: 'P-1JK32597NW6740601NGEEKOA',
+    id: 'P-4Y254548975256844NGEF6LQ',
     tier: 'Professional',
     price: '$129',
     description: 'Our most popular plan for scaling SaaS and E-commerce.',
@@ -24,7 +24,7 @@ const PLANS = [
     icon: Rocket,
   },
   {
-    id: 'P-50L42564753010424NGEEKVI',
+    id: 'P-8WD16174CP897103PNGEF6QA',
     tier: 'Agency',
     price: '$499',
     description: 'Deep SEO infrastructure for agencies and high-traffic networks.',
@@ -37,7 +37,7 @@ export default function PricingTiers() {
   const { user } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
 
-  const currentPlanId = user?.plan === 'STARTER' ? 'P-6W306860WX685352DNGEEKIA' : user?.plan === 'PRO' ? 'P-1JK32597NW6740601NGEEKOA' : user?.plan === 'AGENCY' ? 'P-50L42564753010424NGEEKVI' : null;
+  const currentPlanId = user?.plan === 'STARTER' ? 'P-99994686LA118961JNGEF6HI' : user?.plan === 'PRO' ? 'P-4Y254548975256844NGEF6LQ' : user?.plan === 'AGENCY' ? 'P-8WD16174CP897103PNGEF6QA' : null;
 
   const handleSuccess = (data: any) => {
     alert(`Subscription successful! Your account is being upgraded.`);

@@ -32,18 +32,16 @@ export async function POST(req: NextRequest) {
     );
 
     const result = response.data?.tasks?.[0]?.result?.[0];
-    if (!result) {
-      return NextResponse.json({ error: 'No backlink data found' }, { status: 404 });
-    }
-
+    
+    // Default to zero-state if no data returned (instead of 404 error)
     const backlinkData = {
-      rank: result.rank || 0,
-      backlinks: result.backlinks || 0,
-      referringPages: result.referring_pages || 0,
-      referringDomains: result.referring_domains || 0,
-      referringMainDomains: result.referring_main_domains || 0,
-      referringIps: result.referring_ips || 0,
-      referringSubnets: result.referring_subnets || 0,
+      rank: result?.rank || 0,
+      backlinks: result?.backlinks || 0,
+      referringPages: result?.referring_pages || 0,
+      referringDomains: result?.referring_domains || 0,
+      referringMainDomains: result?.referring_main_domains || 0,
+      referringIps: result?.referring_ips || 0,
+      referringSubnets: result?.referring_subnets || 0,
       updatedAt: new Date().toISOString()
     };
 

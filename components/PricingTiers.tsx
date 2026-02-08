@@ -7,7 +7,7 @@ import PayPalButton from './PayPalButton';
 
 const PLANS = [
   {
-    id: 'P-STARTER',
+    id: 'P-97941045R5419543RNGED5VA',
     tier: 'Starter',
     price: '$39',
     description: 'Perfect for small business owners and niche blogs.',
@@ -15,7 +15,7 @@ const PLANS = [
     icon: Zap,
   },
   {
-    id: 'P-PRO',
+    id: 'P-1U3599198R201123XNGED5NY',
     tier: 'Professional',
     price: '$129',
     description: 'Our most popular plan for scaling SaaS and E-commerce.',
@@ -24,7 +24,7 @@ const PLANS = [
     icon: Rocket,
   },
   {
-    id: 'P-AGENCY',
+    id: 'P-0NA93546HF747042UNGED6TA',
     tier: 'Agency',
     price: '$499',
     description: 'Deep SEO infrastructure for agencies and high-traffic networks.',

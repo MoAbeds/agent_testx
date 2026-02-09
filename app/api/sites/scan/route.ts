@@ -103,7 +103,6 @@ export async function POST(request: NextRequest) {
     const visited = new Set<string>();
     const results = [];
 
-    // Custom Axios instance for the crawl to bypass SSL errors
     const scraper = axios.create({
       httpsAgent: new https.Agent({ rejectUnauthorized: false }),
       headers: { 
@@ -114,16 +113,20 @@ export async function POST(request: NextRequest) {
       validateStatus: () => true // Don't throw on 404
     });
 
+    console.log(`[Crawler] Starting scan for ${cleanDomain} (Max: ${maxPages})`);
+
     while (queue.length > 0 && visited.size < maxPages) {
       const path = queue.shift();
       if (!path || visited.has(path) || isExcluded(path)) continue;
       visited.add(path);
 
       const url = `${protocol}://${cleanDomain}${path}`;
+      console.log(`[Crawler] Scanning: ${url}`);
 
       try {
         const response = await scraper.get(url);
         const status = response.status;
+        console.log(`[Crawler] Status for ${path}: ${status}`);
         
         if (status === 404) {
           await logEvent(site.id, '404_DETECTED', path, { message: `Broken link found during scan` });
@@ -137,15 +140,19 @@ export async function POST(request: NextRequest) {
           const h1Match = html.match(/<h1[^>]*>([^<]*)<\/h1>/i);
           const h1 = h1Match ? h1Match[1].trim() : null;
 
+          console.log(`[Crawler] Extracted for ${path} -> Title: ${title}, Meta: ${metaDesc ? 'Found' : 'Missing'}`);
+
           if (!title || title.length < 10 || !metaDesc || metaDesc.length < 50 || !h1) {
             await logEvent(site.id, 'SEO_GAP', path, { 
               message: `SEO issues found: ${!title ? 'Missing Title' : title.length < 10 ? 'Title too short' : ''} ${!metaDesc ? 'Missing Meta' : metaDesc.length < 50 ? 'Meta too short' : ''} ${!h1 ? 'Missing H1' : ''}`.trim()
             });
           }
 
-          await upsertPage(site.id, path, { title, metaDesc, h1, status });
+          // Force update even if fields are empty to register discovery
+          await upsertPage(site.id, path, { title: title || '', metaDesc: metaDesc || '', h1: h1 || '', status });
           
           const newLinks = extractLinks(html, domain);
+          console.log(`[Crawler] Found ${newLinks.length} internal links on ${path}`);
           for (const link of newLinks) {
             if (!visited.has(link)) queue.push(link);
           }
@@ -153,10 +160,11 @@ export async function POST(request: NextRequest) {
         
         results.push({ path, status });
       } catch (e: any) {
-        console.error(`Failed crawling ${path}:`, e.message);
+        console.error(`[Crawler] Failed crawling ${path}:`, e.message);
       }
     }
 
+    console.log(`[Crawler] Scan complete. Pages processed: ${visited.size}`);
     return NextResponse.json({ success: true, pagesCrawled: results.length, results });
   } catch (error) {
     console.error('Scan error:', error);

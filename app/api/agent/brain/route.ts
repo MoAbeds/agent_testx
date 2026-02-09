@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
       const docRef = await addDoc(collection(db, "rules"), newRule);
       createdRules.push({ id: docRef.id, ...newRule });
       
-      await logEvent(siteId, isDefense ? 'DEFENSE_DEPLOYED' : 'AI_STRATEGIC_FIX', rule.targetPath, { 
+      await logEvent(siteId, isDefense ? 'DEFENSE_DEPLOYED' : 'AI_STRATEGIC_FIX', targetPath, { 
         message: isDefense ? `[DEFENSE] ${newRule.reasoning}` : `Mojo Brain deployed ranking optimization: ${newRule.reasoning}`,
         reasoning: newRule.reasoning,
         ruleId: docRef.id,

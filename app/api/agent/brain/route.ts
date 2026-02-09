@@ -112,9 +112,13 @@ export async function POST(req: NextRequest) {
     const createdRules = [];
     for (const rule of rulesToCreate) {
       const payload = typeof rule.payload === 'string' ? JSON.parse(rule.payload) : rule.payload;
+      
+      // Validation: Ensure targetPath exists or fallback to root
+      const targetPath = rule.targetPath || rule.path || '/';
+
       const newRule = {
         siteId,
-        targetPath: rule.targetPath,
+        targetPath,
         type: isDefense ? 'ALGORITHM_DEFENSE' : (rule.type || 'SEO_OPTIMIZATION'),
         payload: JSON.stringify(payload),
         reasoning: rule.reasoning || payload.reasoning || "Strategic authority optimization",

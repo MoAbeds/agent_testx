@@ -35,7 +35,55 @@ function GuardianContent() {
 
   const selectedSiteId = searchParams.get('siteId');
 
-  // ... (existing useEffects)
+  // 1. Fetch sites belonging to this user
+  useEffect(() => {
+    if (!user) return;
+    const fetchSites = async () => {
+      const q = query(collection(db, "sites"), where("userId", "==", user.uid));
+      const snap = await getDocs(q);
+      const sites = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setAllSites(sites);
+
+      // Auto-select site from URL param or default to first
+      if (sites.length > 0) {
+        const match = selectedSiteId ? sites.find(s => s.id === selectedSiteId) : null;
+        setSite(match || sites[0]);
+      }
+      setLoading(false);
+    };
+    fetchSites();
+  }, [user, selectedSiteId]);
+
+  // 2. Fetch issues and audit events for selected site (real-time)
+  useEffect(() => {
+    if (!site?.id) return;
+
+    // Reset on site change
+    setIssues([]);
+    setAuditEvents([]);
+
+    const issueTypes = ['404_DETECTED', 'SEO_GAP', 'LINK_OPPORTUNITY', 'CONTENT_GAP', 'BACKLINK_OPPORTUNITY'];
+    const auditTypes = ['AUTO_FIX', 'UNDO_ACTION', 'AI_STRATEGIC_FIX', 'DEFENSE_DEPLOYED'];
+
+    const eventsRef = collection(db, "events");
+
+    // Subscribe to issues
+    const issuesQuery = query(eventsRef, where("siteId", "==", site.id), where("type", "in", issueTypes), limit(100));
+    const unsubIssues = onSnapshot(issuesQuery, (snap) => {
+      setIssues(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    // Subscribe to audit events
+    const auditQuery = query(eventsRef, where("siteId", "==", site.id), where("type", "in", auditTypes), limit(100));
+    const unsubAudit = onSnapshot(auditQuery, (snap) => {
+      setAuditEvents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => {
+      unsubIssues();
+      unsubAudit();
+    };
+  }, [site?.id]);
 
   const runBrain = async () => {
     if (!site?.id) return;

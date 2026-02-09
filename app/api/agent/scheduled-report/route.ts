@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import axios from 'axios';
 
 export const dynamic = 'force-dynamic';
@@ -20,9 +20,8 @@ export async function GET(req: NextRequest) {
     for (const siteDoc of sitesSnap.docs) {
       const siteId = siteDoc.id;
       const siteData = siteDoc.data();
-      const userRef = db.collection('users').doc(siteData.userId);
-      const userSnap = await userRef.get();
-      const userData = userSnap.data();
+      const userSnap = await getDoc(doc(db, "users", siteData.userId));
+      const userData = userSnap.exists() ? userSnap.data() : null;
 
       // Trigger the report logic
       

@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 
 export default function OnboardingChecklist({ user, sites }: { user: any, sites: any[] }) {
   const router = useRouter();
-  const [completedSteps, setCompletedCompletedSteps] = useState<string[]>([]);
+  const [completedSteps, setCompletedSteps] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
   // 1. Calculate progress based on real data

@@ -68,6 +68,12 @@ function GuardianContent() {
   }
 
   if (!site && !loading) {
+    // Fallback: If sites exist but none selected, auto-select first
+    if (allSites.length > 0) {
+      setSite(allSites[0]);
+      return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-terminal" size={48} /></div>;
+    }
+
     return (
       <div className="p-8 text-center min-h-screen flex flex-col items-center justify-center">
         <Globe className="mx-auto text-gray-600 mb-4" size={48} />

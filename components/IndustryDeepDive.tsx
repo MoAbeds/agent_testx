@@ -1,15 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BrainCircuit, Loader2, Send, CheckCircle2, Sparkles } from 'lucide-react';
 import Toast from './Toast';
 
-export default function IndustryDeepDive({ siteId }: { siteId: string }) {
+export default function IndustryDeepDive({ siteId, initialIndustry }: { siteId: string, initialIndustry?: string }) {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [intel, setIntel] = useState<any>(null);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  useEffect(() => {
+    if (initialIndustry && initialIndustry !== 'N/A' && initialIndustry !== 'General') {
+      setIntel({ industry: initialIndustry });
+      setCompleted(true);
+    }
+  }, [initialIndustry]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

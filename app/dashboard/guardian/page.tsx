@@ -234,7 +234,7 @@ function GuardianContent() {
 
       <div className="lg:col-span-2 space-y-10">
         <KeywordSniper siteId={site?.id} />
-        <IndustryDeepDive siteId={site?.id} />
+        <IndustryDeepDive siteId={site?.id} initialIndustry={keywords.industry} />
         <BacklinkSection siteId={site?.id} />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           <div className="lg:col-span-2">

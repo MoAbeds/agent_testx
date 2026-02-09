@@ -27,63 +27,82 @@ function GuardianContent() {
   const [loading, setLoading] = useState(true);
   const [brainStatus, setBrainStatus] = useState<'idle' | 'reasoning' | 'success'>('idle');
 
-  // Safety Timeout to prevent infinite loading
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 4000);
-    return () => clearTimeout(timer);
-  }, []);
-
   const selectedSiteId = searchParams.get('siteId');
 
-  // 1. Fetch sites belonging to this user
+  // 1. HARD WIPE on every account change
   useEffect(() => {
-    if (!user) return;
-    const fetchSites = async () => {
-      const q = query(collection(db, "sites"), where("userId", "==", user.uid));
-      const snap = await getDocs(q);
+    setAllSites([]);
+    setSite(null);
+    setIssues([]);
+    setAuditEvents([]);
+    if (!user) setLoading(false);
+  }, [user?.uid]);
+
+  // 2. Fetch only sites that BELONG to this user
+  useEffect(() => {
+    if (!user?.uid || !db) return;
+
+    const sitesQuery = query(
+      collection(db, "sites"), 
+      where("userId", "==", user.uid)
+    );
+    
+    const unsubscribeSites = onSnapshot(sitesQuery, (snap) => {
       const sites = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setAllSites(sites);
 
-      // Auto-select site from URL param or default to first
-      if (sites.length > 0) {
-        const match = selectedSiteId ? sites.find(s => s.id === selectedSiteId) : null;
-        setSite(match || sites[0]);
-      }
+      const current = selectedSiteId 
+        ? sites.find(s => s.id === selectedSiteId) 
+        : sites[0];
+      
+      setSite(current || null);
+      
+      // ✅ Unblock main page loader as soon as site list is known
       setLoading(false);
-    };
-    fetchSites();
-  }, [user, selectedSiteId]);
+    }, (error) => {
+      console.error("Sites fetch error:", error);
+      setLoading(false);
+    });
 
-  // 2. Fetch issues and audit events for selected site (real-time)
+    return () => unsubscribeSites();
+  }, [user?.uid, selectedSiteId]);
+
+  // 3. Fetch events ONLY for the verified site
   useEffect(() => {
-    if (!site?.id) return;
-
-    // Reset on site change
     setIssues([]);
     setAuditEvents([]);
 
-    const issueTypes = ['404_DETECTED', 'SEO_GAP', 'LINK_OPPORTUNITY', 'CONTENT_GAP', 'BACKLINK_OPPORTUNITY'];
-    const auditTypes = ['AUTO_FIX', 'UNDO_ACTION', 'AI_STRATEGIC_FIX', 'DEFENSE_DEPLOYED'];
+    if (!site?.id || !user?.uid) return;
 
-    const eventsRef = collection(db, "events");
+    // Direct filter on siteId. Removed orderBy to prevent Index blocking.
+    const eventsQuery = query(
+      collection(db, "events"), 
+      where("siteId", "==", site.id),
+      limit(100)
+    );
 
-    // Subscribe to issues
-    const issuesQuery = query(eventsRef, where("siteId", "==", site.id), where("type", "in", issueTypes), limit(100));
-    const unsubIssues = onSnapshot(issuesQuery, (snap) => {
-      setIssues(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    const unsubscribeEvents = onSnapshot(eventsQuery, (snap) => {
+      const allEvents = snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as any))
+        .filter(e => e.siteId === site.id);
+      
+      const filtered = allEvents.filter((e: any) => 
+        ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
+      );
+
+      // Sort in memory to avoid Firestore Index requirement
+      const sorted = allEvents.sort((a: any, b: any) => 
+        (b.occurredAt?.seconds || 0) - (a.occurredAt?.seconds || 0)
+      );
+
+      setIssues(filtered);
+      setAuditEvents(sorted.slice(0, 20));
+    }, (error) => {
+      console.warn("Events fetch error (likely missing index):", error);
     });
 
-    // Subscribe to audit events
-    const auditQuery = query(eventsRef, where("siteId", "==", site.id), where("type", "in", auditTypes), limit(100));
-    const unsubAudit = onSnapshot(auditQuery, (snap) => {
-      setAuditEvents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-
-    return () => {
-      unsubIssues();
-      unsubAudit();
-    };
-  }, [site?.id]);
+    return () => unsubscribeEvents();
+  }, [site?.id, user?.uid]);
 
   const runBrain = async () => {
     if (!site?.id) return;
@@ -97,10 +116,9 @@ function GuardianContent() {
       const data = await res.json();
       if (data.success) {
         setBrainStatus('success');
-        // Reset to idle after 3 seconds so they can run it again later
         setTimeout(() => setBrainStatus('idle'), 3000);
       } else {
-        setBrainStatus('idle'); // Or error state if we had one
+        setBrainStatus('idle');
       }
     } catch (e) {
       setBrainStatus('idle');
@@ -115,13 +133,13 @@ function GuardianContent() {
     );
   }
 
-  if (!site && !loading) {
-    // Fallback: If sites exist but none selected, auto-select first
-    if (allSites.length > 0) {
-      setSite(allSites[0]);
-      return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-terminal" size={48} /></div>;
-    }
+  // Fallback: If site is null but we have sites in the list, auto-select first one
+  if (!site && !loading && allSites.length > 0) {
+    setSite(allSites[0]);
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-terminal" size={48} /></div>;
+  }
 
+  if (!site && !loading) {
     return (
       <div className="p-8 text-center min-h-screen flex flex-col items-center justify-center">
         <Globe className="mx-auto text-gray-600 mb-4" size={48} />

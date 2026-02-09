@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const { ruleId, siteId, isActive, userId } = await request.json();
+    const { ruleId, siteId, isActive, userId, payload } = await request.json(); // Added payload
     if (!ruleId || !siteId || !userId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
 
     // 🔒 OWNERSHIP VERIFICATION (CRITICAL)
@@ -27,8 +27,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Data mismatch' }, { status: 400 });
     }
 
-    // Update status
-    await updateDoc(ruleRef, { isActive: !!isActive });
+    // Update data
+    const updateData: any = {};
+    if (typeof isActive === 'boolean') updateData.isActive = isActive;
+    if (payload) updateData.payload = JSON.stringify(payload); // Support payload updates
+
+    await updateDoc(ruleRef, updateData);
 
     // 🔒 AUTO-CLEANUP: If rule is approved (isActive=true), REMOVE the corresponding "SEO_GAP" issue
     if (isActive) {

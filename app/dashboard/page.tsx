@@ -208,9 +208,9 @@ export default function Dashboard() {
                                     <td className="p-4 text-xs text-gray-500 font-mono truncate">{page.domain}</td>
                                     <td className="p-4">
                                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                          page.status === 'LIVE' 
+                                          page.status === 200 || page.status === 'LIVE'
                                             ? 'bg-green-900/10 text-green-400 border-green-900/30' 
-                                            : 'bg-yellow-900/10 text-yellow-400 border-yellow-900/30'
+                                            : 'bg-red-900/10 text-red-400 border-red-900/30'
                                         }`}>
                                             {page.status}
                                         </span>

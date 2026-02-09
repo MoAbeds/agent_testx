@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
 
     const createdRules = [];
     for (const rule of rulesToCreate) {
-      const payload = typeof rule.payload === 'string' ? JSON.parse(rule.payload) : rule.payload;
+      const payload = typeof rule.payload === 'string' ? JSON.parse(rule.payload) : (rule.payload || {});
       
       // Validation: Ensure targetPath exists or fallback to root
       const targetPath = rule.targetPath || rule.path || '/';

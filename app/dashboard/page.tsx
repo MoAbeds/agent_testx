@@ -109,12 +109,22 @@ export default function Dashboard() {
       // Find original page data if possible, or fallback
       const originalPage = pages.find(p => p.path === latestRule.targetPath);
       
+      const newTitle = payload.title || payload.titleTag || "Optimized Title";
+      const newMeta = payload.metaDesc || payload.metaDescription || "Optimized Meta Description";
+      
+      let oldTitle = originalPage?.title || "(No previous title)";
+      let oldMeta = originalPage?.metaDesc || "(No previous meta)";
+
+      // If they are identical (e.g. rescan happened), show specific message
+      if (oldTitle === newTitle) oldTitle = "(Same as current)";
+      if (oldMeta === newMeta) oldMeta = "(Same as current)";
+
       diffData = {
         path: latestRule.targetPath,
-        oldTitle: originalPage?.title || "Original Title",
-        newTitle: payload.title || payload.titleTag || "Optimized Title",
-        oldMeta: originalPage?.metaDesc || "Original Meta",
-        newMeta: payload.metaDesc || payload.metaDescription || "Optimized Meta Description"
+        oldTitle,
+        newTitle,
+        oldMeta,
+        newMeta
       };
     } catch (e) {}
   }

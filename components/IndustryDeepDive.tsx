@@ -12,11 +12,16 @@ export default function IndustryDeepDive({ siteId, initialIndustry }: { siteId: 
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   useEffect(() => {
+    // Reset state when siteId changes
+    setCompleted(false);
+    setIntel(null);
+    setDescription('');
+    
     if (initialIndustry && initialIndustry !== 'N/A' && initialIndustry !== 'General') {
       setIntel({ industry: initialIndustry });
       setCompleted(true);
     }
-  }, [initialIndustry]);
+  }, [initialIndustry, siteId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -133,8 +133,10 @@ function GuardianContent() {
       if (savedStatus === 'active') {
         setBrainStatus('success');
       } else {
-        setBrainStatus('idle');
+        setBrainStatus('idle'); // Reset to idle for new/other sites
       }
+    } else {
+      setBrainStatus('idle');
     }
   }, [site?.id]);
 

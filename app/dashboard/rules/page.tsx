@@ -3,7 +3,7 @@
 import { useAuth } from '@/lib/hooks';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { useEffect, useState, Suspense } from 'react';
-import { Shield, Globe, Clock, CheckCircle, Loader2, Check, X, RefreshCw, Bot } from 'lucide-react';
+import { Shield, Globe, Clock, CheckCircle, Loader2, Check, X, RefreshCw, Bot, Edit, Save } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import CreateRuleForm from '@/components/CreateRuleForm';
 
@@ -12,6 +12,8 @@ function RulesContent() {
   const [rules, setRules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{ title: string, metaDesc: string }>({ title: '', metaDesc: '' });
   const [userSiteIds, setUserSiteIds] = useState<string[]>([]);
 
   // 1. Fetch sites belonging ONLY to this user first
@@ -73,6 +75,48 @@ function RulesContent() {
     }
   };
 
+  const startEditing = (rule: any) => {
+    let payload: any = {};
+    try { payload = JSON.parse(rule.payload); } catch (e) {}
+    setEditForm({
+      title: payload.title || '',
+      metaDesc: payload.metaDescription || payload.metaDesc || ''
+    });
+    setEditingId(rule.id);
+  };
+
+  const saveRule = async (rule: any) => {
+    setUpdating(rule.id);
+    try {
+      let currentPayload: any = {};
+      try { currentPayload = JSON.parse(rule.payload); } catch (e) {}
+      
+      const newPayload = {
+        ...currentPayload,
+        title: editForm.title,
+        metaDesc: editForm.metaDesc, // Standardize on metaDesc
+        metaDescription: editForm.metaDesc // Legacy support
+      };
+
+      const res = await fetch('/api/rules/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          ruleId: rule.id, 
+          siteId: rule.siteId, 
+          userId: user?.uid,
+          payload: newPayload
+        })
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      setEditingId(null);
+    } catch (e) {
+      alert("Error saving rule.");
+    } finally {
+      setUpdating(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-20">
@@ -110,6 +154,7 @@ function RulesContent() {
               rules.map((rule) => {
                 let payload: any = { title: '', metaDescription: '' };
                 try { payload = JSON.parse(rule.payload); } catch (e) {}
+                const isEditing = editingId === rule.id;
 
                 return (
                   <div key={rule.id} className="bg-[#0a0a0a] border border-gray-800 rounded-xl p-5 hover:border-gray-700 transition-all group shadow-sm">
@@ -124,41 +169,90 @@ function RulesContent() {
                       </div>
                       
                       <div className="flex items-center gap-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${
-                          rule.isActive 
-                            ? 'bg-green-900/20 text-green-400 border-green-900/50' 
-                            : 'bg-yellow-900/20 text-yellow-400 border-yellow-900/50'
-                        }`}>
-                          {rule.isActive ? 'Active' : 'Draft'}
-                        </span>
-                        
-                        <button
-                          onClick={() => toggleRuleStatus(rule.id, rule.siteId, rule.isActive)}
-                          disabled={updating === rule.id}
-                          className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                            rule.isActive 
-                              ? 'bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20' 
-                              : 'bg-terminal/10 text-terminal border border-terminal/20 hover:bg-terminal/20'
-                          }`}
-                        >
-                          {updating === rule.id ? <RefreshCw className="animate-spin" size={12} /> : rule.isActive ? <X size={12} /> : <Check size={12} />}
-                          {rule.isActive ? 'Deactivate' : 'Approve'}
-                        </button>
+                        {!isEditing && (
+                          <>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${
+                              rule.isActive 
+                                ? 'bg-green-900/20 text-green-400 border-green-900/50' 
+                                : 'bg-yellow-900/20 text-yellow-400 border-yellow-900/50'
+                            }`}>
+                              {rule.isActive ? 'Active' : 'Draft'}
+                            </span>
+                            
+                            <button
+                              onClick={() => startEditing(rule)}
+                              className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-gray-800 transition-colors"
+                              title="Edit Rule"
+                            >
+                              <Edit size={14} />
+                            </button>
+
+                            <button
+                              onClick={() => toggleRuleStatus(rule.id, rule.siteId, rule.isActive)}
+                              disabled={updating === rule.id}
+                              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                                rule.isActive 
+                                  ? 'bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20' 
+                                  : 'bg-terminal/10 text-terminal border border-terminal/20 hover:bg-terminal/20'
+                              }`}
+                            >
+                              {updating === rule.id ? <RefreshCw className="animate-spin" size={12} /> : rule.isActive ? <X size={12} /> : <Check size={12} />}
+                              {rule.isActive ? 'Deactivate' : 'Approve'}
+                            </button>
+                          </>
+                        )}
+                        {isEditing && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setEditingId(null)}
+                              className="p-1.5 rounded-lg text-red-400 hover:bg-red-900/20 transition-colors"
+                              title="Cancel"
+                            >
+                              <X size={14} />
+                            </button>
+                            <button
+                              onClick={() => saveRule(rule)}
+                              disabled={updating === rule.id}
+                              className="flex items-center gap-1.5 px-3 py-1 bg-terminal text-black rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-green-400 transition-colors"
+                            >
+                              {updating === rule.id ? <RefreshCw className="animate-spin" size={12} /> : <Save size={12} />}
+                              Save
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm bg-[#111] p-3 rounded-lg border border-gray-800/50">
                       <div>
                         <span className="text-gray-500 text-[10px] uppercase tracking-wider block mb-1">Title Override</span>
-                        <p className="text-gray-300 line-clamp-1 font-medium">{payload.title || 'None'}</p>
+                        {isEditing ? (
+                          <input 
+                            type="text" 
+                            className="w-full bg-black border border-gray-800 rounded px-2 py-1 text-white text-xs focus:border-terminal outline-none"
+                            value={editForm.title}
+                            onChange={(e) => setEditForm({...editForm, title: e.target.value})}
+                          />
+                        ) : (
+                          <p className="text-gray-300 line-clamp-1 font-medium">{payload.title || 'None'}</p>
+                        )}
                       </div>
                       <div>
                         <span className="text-gray-500 text-[10px] uppercase tracking-wider block mb-1">Meta Override</span>
-                        <p className="text-gray-300 line-clamp-1">{payload.metaDescription || payload.metaDesc || 'None'}</p>
+                        {isEditing ? (
+                          <textarea 
+                            className="w-full bg-black border border-gray-800 rounded px-2 py-1 text-white text-xs focus:border-terminal outline-none"
+                            rows={2}
+                            value={editForm.metaDesc}
+                            onChange={(e) => setEditForm({...editForm, metaDesc: e.target.value})}
+                          />
+                        ) : (
+                          <p className="text-gray-300 line-clamp-2">{payload.metaDescription || payload.metaDesc || 'None'}</p>
+                        )}
                       </div>
                     </div>
 
-                    {payload.reasoning && (
+                    {!isEditing && payload.reasoning && (
                       <div className="mt-3 p-3 bg-blue-500/5 border border-blue-500/10 rounded-lg">
                         <div className="flex items-center gap-2 mb-1">
                           <Bot size={12} className="text-blue-400" />

@@ -79,7 +79,13 @@ export async function POST(request: NextRequest) {
     if (isActive) {
       const targetPath = ruleSnap.data().targetPath;
       const normalizedPath = targetPath.startsWith('/') ? targetPath : `/${targetPath}`;
-      const pathVariants = [targetPath, normalizedPath, normalizedPath.substring(1)]; // Try "/path", "path", and whatever is in DB
+      const pathVariants = [
+        targetPath, 
+        normalizedPath, 
+        normalizedPath.substring(1),
+        decodeURIComponent(targetPath),
+        encodeURIComponent(targetPath)
+      ]; // Try "/path", "path", decoded, encoded
 
       console.log(`[Auto-Cleanup] Attempting to remove issues for: ${targetPath}`);
       console.log(`[Auto-Cleanup] Variants: ${JSON.stringify(pathVariants)}`);

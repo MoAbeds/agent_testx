@@ -19,7 +19,16 @@ export async function POST(req: NextRequest) {
 
     // ⚡ STRATEGIC ENERGY CHECK (Scarcity Loop)
     const today = new Date().toISOString().split('T')[0];
-    const energyUsed = userData?.energyUsed?.[siteId] || 0;
+    const userEnergyMap = userData?.energyUsed || {};
+    const lastUpdate = userData?.lastEnergyUpdate || '';
+    
+    // Reset energy if new day
+    if (lastUpdate !== today) {
+        userEnergyMap[siteId] = 0;
+        await updateDoc(userRef, { energyUsed: {}, lastEnergyUpdate: today }); // Reset all
+    }
+
+    const energyUsed = userEnergyMap[siteId] || 0;
     const maxEnergy = 3; 
 
     if (energyUsed >= maxEnergy && mode !== 'DEFENSE') {
@@ -139,8 +148,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (!isDefense && createdRules.length > 0) {
+      const newEnergyMap = { ...userEnergyMap };
+      newEnergyMap[siteId] = (newEnergyMap[siteId] || 0) + 1;
+      
       await updateDoc(userRef, {
-        [`energyUsed.${siteId}`]: (userData?.energyUsed?.[siteId] || 0) + 1,
+        energyUsed: newEnergyMap,
         lastEnergyUpdate: today
       });
     }

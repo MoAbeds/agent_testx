@@ -116,7 +116,7 @@ function GuardianContent() {
       const data = await res.json();
       if (data.success) {
         setBrainStatus('success');
-        setTimeout(() => setBrainStatus('idle'), 3000);
+        // setTimeout(() => setBrainStatus('idle'), 3000); // Removed timeout to keep it green
       } else {
         setBrainStatus('idle');
       }

@@ -216,7 +216,14 @@ export default function Dashboard() {
                                         </span>
                                     </td>
                                     <td className="p-4 text-right">
-                                        <OptimizeButton pageId={page.id} />
+                                        {page.lastOptimized ? (
+                                          <span className="text-[10px] font-bold uppercase tracking-widest text-terminal flex items-center justify-end gap-1">
+                                            <ShieldCheck size={14} />
+                                            Optimized
+                                          </span>
+                                        ) : (
+                                          <OptimizeButton pageId={page.id} />
+                                        )}
                                     </td>
                                 </tr>
                             ))}

@@ -105,11 +105,15 @@ export default function Dashboard() {
   if (latestRule) {
     try {
       const payload = JSON.parse(latestRule.payload);
+      
+      // Find original page data if possible, or fallback
+      const originalPage = pages.find(p => p.path === latestRule.targetPath);
+      
       diffData = {
         path: latestRule.targetPath,
-        oldTitle: "Original Title",
+        oldTitle: originalPage?.title || "Original Title",
         newTitle: payload.title || payload.titleTag || "Optimized Title",
-        oldMeta: "Original Meta",
+        oldMeta: originalPage?.metaDesc || "Original Meta",
         newMeta: payload.metaDesc || payload.metaDescription || "Optimized Meta Description"
       };
     } catch (e) {}

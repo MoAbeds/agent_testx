@@ -44,18 +44,29 @@ export async function POST(req: NextRequest) {
     }
 
     // 📈 RANKING VELOCITY ANALYSIS (SDC Innovation Trigger)
-    const rankHistorySnap = await getDocs(query(
-      collection(db, "rank_history"), 
-      where("siteId", "==", siteId), 
-      orderBy("timestamp", "desc"), 
-      limit(3)
-    ));
-    const history = rankHistorySnap.docs.map(d => d.data());
-    
-    // Innovation Trigger: If rank hasn't moved in last 3 scans, allow "High Curvature" (radical) moves.
-    const isVelocityFlat = history.length >= 3 && 
-      history[0].averageRank === history[1].averageRank && 
-      history[1].averageRank === history[2].averageRank;
+    // Note: This query requires a Composite Index (siteId + timestamp + DESC)
+    let isVelocityFlat = false;
+    try {
+      const rankHistorySnap = await getDocs(query(
+        collection(db, "rank_history"), 
+        where("siteId", "==", siteId), 
+        orderBy("timestamp", "desc"), 
+        limit(3)
+      ));
+      const history = rankHistorySnap.docs.map(d => d.data());
+      
+      isVelocityFlat = history.length >= 3 && 
+        history[0].averageRank === history[1].averageRank && 
+        history[1].averageRank === history[2].averageRank;
+    } catch (e: any) {
+      if (e.code === 'failed-precondition') {
+        console.warn("[Mojo Brain] Missing Index for Ranking Velocity. Defaulting to STABLE mode.");
+        // We catch the index error so the Brain can still run in basic mode.
+        isVelocityFlat = false; 
+      } else {
+        throw e;
+      }
+    }
 
     const pagesSnap = await getDocs(query(collection(db, "pages"), where("siteId", "==", siteId)));
     const pages = pagesSnap.docs.map(d => d.data());

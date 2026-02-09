@@ -16,6 +16,8 @@ export default function SiteManager({ sites, currentSiteId }: { sites: Site[], c
 
   const currentSite = sites.find(s => s.id === currentSiteId) || sites[0];
 
+  if (!currentSite) return null;
+
   const handleDelete = async () => {
     if (!confirm(`Are you sure you want to remove ${currentSite.domain}? This will delete all crawled pages, rules, and logs.`)) {
       return;

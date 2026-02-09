@@ -44,7 +44,7 @@ export default function GuardianPulse() {
                 <span className="text-terminal"> {p.type === 'AI_STRATEGIC_FIX' ? 'Optimization' : 'Handshake'}</span>
               </p>
               <p className="text-[8px] text-gray-600 uppercase font-black tracking-tighter mt-0.5">
-                {new Date(p.occurredAt?.seconds * 1000).toLocaleTimeString()}
+                {new Date((p.occurredAt?.seconds || 0) * 1000).toLocaleTimeString()}
               </p>
             </div>
           </div>

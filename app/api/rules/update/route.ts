@@ -34,6 +34,47 @@ export async function POST(request: NextRequest) {
 
     await updateDoc(ruleRef, updateData);
 
+    // 🔒 AUTO-UPDATE PAGE: If rule is approved, update the actual Page record so it stops showing as "Unoptimized"
+    if (isActive) {
+      const targetPath = ruleSnap.data().targetPath;
+      const payload = JSON.parse(ruleSnap.data().payload || '{}');
+      
+      // Find the page document
+      const pagesQuery = query(
+        collection(db, "pages"), 
+        where("siteId", "==", siteId),
+        where("path", "==", targetPath)
+      );
+      const pageSnap = await getDocs(pagesQuery);
+      
+      if (!pageSnap.empty) {
+        const pageDoc = pageSnap.docs[0];
+        console.log(`[Rule Approved] Updating Page Record ${pageDoc.id} with optimized metadata.`);
+        
+        await updateDoc(doc(db, "pages", pageDoc.id), {
+          title: payload.title || payload.newTitle,
+          metaDesc: payload.metaDescription || payload.metaDesc,
+          lastOptimized: new Date().toISOString()
+        });
+      } else {
+        // Fallback: try adding a slash if not found
+        const slashPath = targetPath.startsWith('/') ? targetPath : `/${targetPath}`;
+        const pagesQuery2 = query(
+          collection(db, "pages"), 
+          where("siteId", "==", siteId),
+          where("path", "==", slashPath)
+        );
+        const pageSnap2 = await getDocs(pagesQuery2);
+        if (!pageSnap2.empty) {
+           await updateDoc(doc(db, "pages", pageSnap2.docs[0].id), {
+            title: payload.title || payload.newTitle,
+            metaDesc: payload.metaDescription || payload.metaDesc,
+            lastOptimized: new Date().toISOString()
+          });
+        }
+      }
+    }
+
     // 🔒 AUTO-CLEANUP: If rule is approved (isActive=true), REMOVE the corresponding "SEO_GAP" issue
     if (isActive) {
       const targetPath = ruleSnap.data().targetPath;

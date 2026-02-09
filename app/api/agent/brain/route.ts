@@ -24,8 +24,8 @@ export async function POST(req: NextRequest) {
     
     // Reset energy if new day
     if (lastUpdate !== today) {
-        userEnergyMap[siteId] = 0;
         await updateDoc(userRef, { energyUsed: {}, lastEnergyUpdate: today }); // Reset all
+        userEnergyMap[siteId] = 0; // Local reset for check below
     }
 
     const energyUsed = userEnergyMap[siteId] || 0;

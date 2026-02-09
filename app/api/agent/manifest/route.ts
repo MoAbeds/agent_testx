@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSiteByApiKey, getActiveRules, logEvent } from '@/lib/db';
+import { db } from '@/lib/firebase';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,10 +23,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'Invalid API Key' }, { status: 403 });
   }
 
-  // Log heartbeat to show agent is "Live" in Dashboard
+  // 1. Log heartbeat event
   await logEvent(site.id, 'HEARTBEAT', 'Agent Handshake', { 
     agent: request.headers.get('user-agent') || 'unknown' 
   });
+
+  // 2. UPDATE SITE DOC: Mark as "Live" for Onboarding Checklist
+  try {
+    await updateDoc(doc(db, "sites", site.id), {
+      lastAgentHandshake: serverTimestamp()
+    });
+  } catch(e) {
+    console.error("Failed to update handshake timestamp", e);
+  }
 
   const dbRules = await getActiveRules(site.id);
   const formattedRules: Record<string, any> = {};

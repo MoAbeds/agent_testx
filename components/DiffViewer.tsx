@@ -27,11 +27,11 @@ export default function DiffViewer({ oldTitle, newTitle, oldMeta, newMeta }: Dif
           <div className="font-mono text-sm text-gray-500 space-y-4">
             <div>
               <p className="text-xs text-gray-600 mb-1">Title Tag</p>
-              <div className="line-through decoration-red-500/50 text-red-900/50">{oldTitle}</div>
+              <div className="line-through decoration-red-500/50 text-red-500/50">{oldTitle}</div>
             </div>
             <div>
               <p className="text-xs text-gray-600 mb-1">Meta Description</p>
-              <div className="line-through decoration-red-500/50 text-red-900/50">{oldMeta}</div>
+              <div className="line-through decoration-red-500/50 text-red-500/50">{oldMeta}</div>
             </div>
           </div>
         </div>

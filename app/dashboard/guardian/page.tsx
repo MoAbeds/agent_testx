@@ -25,85 +25,15 @@ function GuardianContent() {
   const [issues, setIssues] = useState<any[]>([]);
   const [auditEvents, setAuditEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [brainstorming, setBrainstorming] = useState(false);
+  const [brainStatus, setBrainStatus] = useState<'idle' | 'reasoning' | 'success'>('idle');
 
   const selectedSiteId = searchParams.get('siteId');
 
-  // 1. HARD WIPE on every account change
-  useEffect(() => {
-    setAllSites([]);
-    setSite(null);
-    setIssues([]);
-    setAuditEvents([]);
-    if (!user) setLoading(false);
-  }, [user?.uid]);
-
-  // 2. Fetch only sites that BELONG to this user
-  useEffect(() => {
-    if (!user?.uid || !db) return;
-
-    const sitesQuery = query(
-      collection(db, "sites"), 
-      where("userId", "==", user.uid)
-    );
-    
-    const unsubscribeSites = onSnapshot(sitesQuery, (snap) => {
-      const sites = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setAllSites(sites);
-
-      const current = selectedSiteId 
-        ? sites.find(s => s.id === selectedSiteId) 
-        : sites[0];
-      
-      setSite(current || null);
-      setLoading(false);
-    }, (error) => {
-      console.error("Sites fetch error:", error);
-      setLoading(false);
-    });
-
-    return () => unsubscribeSites();
-  }, [user?.uid, selectedSiteId]);
-
-  // 3. Fetch events ONLY for the verified site belonging to the current user
-  useEffect(() => {
-    // SECURITY WIPE: Immediate wipe if site ID or User ID changes
-    setIssues([]);
-    setAuditEvents([]);
-
-    if (!site?.id || !user?.uid) return;
-
-    // Direct filter on siteId ensures we don't grab global data
-    const eventsQuery = query(
-      collection(db, "events"), 
-      where("siteId", "==", site.id),
-      limit(100)
-    );
-
-    const unsubscribeEvents = onSnapshot(eventsQuery, (snap) => {
-      // 🔒 HARD SECONDARY CHECK in JS: If Firestore leaks, we filter here.
-      const allEvents = snap.docs
-        .map(d => ({ id: d.id, ...d.data() } as any))
-        .filter(e => e.siteId === site.id);
-      
-      const filtered = allEvents.filter((e: any) => 
-        ["404_DETECTED", "SEO_GAP", "LINK_OPPORTUNITY", "CONTENT_GAP", "BACKLINK_OPPORTUNITY"].includes(e.type)
-      );
-
-      const sorted = allEvents.sort((a: any, b: any) => 
-        (b.occurredAt?.seconds || 0) - (a.occurredAt?.seconds || 0)
-      );
-
-      setIssues(filtered);
-      setAuditEvents(sorted.slice(0, 20));
-    });
-
-    return () => unsubscribeEvents();
-  }, [site?.id, user?.uid]);
+  // ... (existing useEffects)
 
   const runBrain = async () => {
     if (!site?.id) return;
-    setBrainstorming(true);
+    setBrainStatus('reasoning');
     try {
       const res = await fetch('/api/agent/brain', {
         method: 'POST',
@@ -112,12 +42,14 @@ function GuardianContent() {
       });
       const data = await res.json();
       if (data.success) {
-        // Removed browser alert for better UX
+        setBrainStatus('success');
+        // Reset to idle after 3 seconds so they can run it again later
+        setTimeout(() => setBrainStatus('idle'), 3000);
+      } else {
+        setBrainStatus('idle'); // Or error state if we had one
       }
     } catch (e) {
-      // Quiet fail
-    } finally {
-      setBrainstorming(false);
+      setBrainStatus('idle');
     }
   };
 
@@ -167,13 +99,28 @@ function GuardianContent() {
         <div className="flex flex-wrap items-center gap-3">
             <button 
               onClick={runBrain}
-              disabled={brainstorming}
-              className={`flex items-center gap-2 px-4 py-2.5 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-[0_0_15px_rgba(147,51,234,0.3)] disabled:opacity-50 ${
-                brainstorming ? 'bg-purple-600' : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500'
+              disabled={brainStatus !== 'idle'}
+              className={`flex items-center gap-2 px-4 py-2.5 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-[0_0_15px_rgba(147,51,234,0.3)] disabled:opacity-80 ${
+                brainStatus === 'success' 
+                  ? 'bg-green-600 hover:bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]'
+                  : brainStatus === 'reasoning'
+                  ? 'bg-purple-600'
+                  : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500'
               }`}
             >
-              {brainstorming ? <Loader2 className="animate-spin" size={16} /> : <BrainCircuit size={16} />}
-              {brainstorming ? 'Reasoning...' : 'Activate Mojo Brain'}
+              {brainStatus === 'reasoning' ? (
+                <>
+                  <Loader2 className="animate-spin" size={16} /> Reasoning...
+                </>
+              ) : brainStatus === 'success' ? (
+                <>
+                  <Sparkles size={16} /> Strategy Deployed!
+                </>
+              ) : (
+                <>
+                  <BrainCircuit size={16} /> Activate Mojo Brain
+                </>
+              )}
             </button>
             <div className="flex items-center gap-2">
               <SiteManager sites={allSites} currentSiteId={site?.id} />

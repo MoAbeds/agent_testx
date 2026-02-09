@@ -116,7 +116,8 @@ function GuardianContent() {
       const data = await res.json();
       if (data.success) {
         setBrainStatus('success');
-        // setTimeout(() => setBrainStatus('idle'), 3000); // Removed timeout to keep it green
+        // Store success state in localStorage so it persists on refresh
+        localStorage.setItem(`mojo_brain_status_${site.id}`, 'active');
       } else {
         setBrainStatus('idle');
       }
@@ -124,6 +125,18 @@ function GuardianContent() {
       setBrainStatus('idle');
     }
   };
+
+  // Restore brain status on mount or site change
+  useEffect(() => {
+    if (site?.id) {
+      const savedStatus = localStorage.getItem(`mojo_brain_status_${site.id}`);
+      if (savedStatus === 'active') {
+        setBrainStatus('success');
+      } else {
+        setBrainStatus('idle');
+      }
+    }
+  }, [site?.id]);
 
   if (loading) {
     return (

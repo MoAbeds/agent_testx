@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     }
 
     const energyUsed = userEnergyMap[siteId] || 0;
-    const maxEnergy = 3; 
+    const maxEnergy = 50; // Increased for testing
 
     if (energyUsed >= maxEnergy && mode !== 'DEFENSE') {
       return NextResponse.json({ 

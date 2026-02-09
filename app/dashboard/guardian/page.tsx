@@ -27,6 +27,12 @@ function GuardianContent() {
   const [loading, setLoading] = useState(true);
   const [brainStatus, setBrainStatus] = useState<'idle' | 'reasoning' | 'success'>('idle');
 
+  // Safety Timeout to prevent infinite loading
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 4000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const selectedSiteId = searchParams.get('siteId');
 
   // ... (existing useEffects)

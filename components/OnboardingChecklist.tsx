@@ -57,7 +57,7 @@ export default function OnboardingChecklist({ user, sites }: { user: any, sites:
 
   const progress = Math.round((steps.filter(s => s.completed).length / steps.length) * 100);
 
-  if (progress === 100 && user?.onboardingDismissed) return null;
+  if (progress === 100) return null;
 
   const handleDismiss = async () => {
     if (!user?.uid) return;
